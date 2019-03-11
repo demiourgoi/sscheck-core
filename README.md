@@ -1,2 +1,3 @@
 # sscheck-core
-Computing engine independent code for sscheck
+
+Distributed computing engine independent code for sscheck
