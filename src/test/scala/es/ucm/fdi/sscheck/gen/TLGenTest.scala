@@ -7,11 +7,11 @@ import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatest.prop.PropertyChecks._
 import org.scalatest.Inspectors.{forAll => testForAll}
-import Batch.seq2batch
+import Window.seq2batch
 import BatchGenConversions._
-import PDStreamGen._
+import PStreamGen._
 import Buildables.{buildableBatch, buildablePDStreamFromBatch}
-import DStreamMatchers._
+import PStreamMatchers._
 import es.ucm.fdi.sscheck.prop.UtilsProp
 
 /** Tests for the LTL inspired HO generators defined at BatchGen and DStreamGen 
@@ -35,10 +35,10 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   // 
   property("BatchGen.now() applied to a batch generator returns a dstream generator " +  
       "with exactly one batch, and doesn't introduce new elements") =
-    forAll ("batch" |: arbitrary[Batch[Int]]) { batch : Batch[Int] =>
+    forAll ("batch" |: arbitrary[Window[Int]]) { batch : Window[Int] =>
       // note here we are dropping some elements
-      val g = BatchGen.now(Gen.someOf(batch))
-      forAll ("dstream" |: g) { dstream : PDStream[Int] =>
+      val g = WindowGen.now(Gen.someOf(batch))
+      forAll ("dstream" |: g) { dstream : PStream[Int] =>
         dstream should have length (1)
         dstream(0).length should be <= (batch.length) 
         testForAll (dstream(0)) { batch should contain (_)}
@@ -48,10 +48,10 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   
   property("BatchGen.now() applied to a constant batch generator returns a dstream generator " +
       "with exactly that batch as the only batch")  = 
-    forAll ("batch" |: arbitrary[Batch[Int]]) { batch : Batch[Int] =>
+    forAll ("batch" |: arbitrary[Window[Int]]) { batch : Window[Int] =>
       // using a constant generator
-      val g = BatchGen.now(batch : Batch[Int])
-      forAll ("dstream" |: g) { dstream : PDStream[Int] =>
+      val g = WindowGen.now(batch : Window[Int])
+      forAll ("dstream" |: g) { dstream : PStream[Int] =>
         dstream should have length (1)
         dstream(0) should be (batch)
         true
@@ -60,25 +60,25 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   
   property("BatchGen.next() returns a dstream generator that has exactly two batches, " + 
        "the first one is emptyBatch, and the second one is its argument") = 
-    forAll ("batch" |: arbitrary[Batch[Int]]) { batch : Batch[Int] =>
+    forAll ("batch" |: arbitrary[Window[Int]]) { batch : Window[Int] =>
       // using a constant generator
-      val g = BatchGen.next(batch : Batch[Int])
-      forAll ("dstream" |: g) { dstream : PDStream[Int] =>
+      val g = WindowGen.next(batch : Window[Int])
+      forAll ("dstream" |: g) { dstream : PStream[Int] =>
         dstream should have length (2)
-        dstream(0) should be (Batch.empty)
+        dstream(0) should be (Window.empty)
         dstream(1) should be (batch)
         true
       }
     }  
   
    property("BatchGen.laterN(n, bg) generates n batches and then bg" ) =
-    forAll ("batch" |: arbitrary[Batch[Int]], "n" |: Gen.choose(-10, 30))  { 
-      (batch : Batch[Int], n : Int) =>
+    forAll ("batch" |: arbitrary[Window[Int]], "n" |: Gen.choose(-10, 30))  {
+      (batch : Window[Int], n : Int) =>
         // using a constant generator
-        val g = BatchGen.laterN(n, batch)
-        forAll ("nextDStream" |: g) { nextDStream : PDStream[Int] =>
+        val g = WindowGen.laterN(n, batch)
+        forAll ("nextDStream" |: g) { nextDStream : PStream[Int] =>
           nextDStream should have length (math.max(0, n) + 1)
-          testForAll (nextDStream.slice(0, n)) {_ should be (Batch.empty)}
+          testForAll (nextDStream.slice(0, n)) {_ should be (Window.empty)}
           nextDStream(nextDStream.length-1) should be (batch)
           true  
         }
@@ -86,11 +86,11 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   
   property("BatchGen.until is a strong until, i.e. the second generator always occurs, and " +
       "the first one occours before")  =
-    forAll ("batch1" |: arbitrary[Batch[Int]], "batch2" |: arbitrary[Batch[Int]]) { 
-      (batch1 : Batch[Int], batch2 : Batch[Int]) => 
+    forAll ("batch1" |: arbitrary[Window[Int]], "batch2" |: arbitrary[Window[Int]]) {
+      (batch1 : Window[Int], batch2 : Window[Int]) =>
         // using constant generators
-        val g = BatchGen.until(batch1, batch2)
-        forAll ("untilDStream" |: g) { untilDStream : PDStream[Int] =>
+        val g = WindowGen.until(batch1, batch2)
+        forAll ("untilDStream" |: g) { untilDStream : PStream[Int] =>
           testForAll (untilDStream.slice(0, untilDStream.length-1)) { _ should be (batch1)}
           if (untilDStream.length >0)
             untilDStream(untilDStream.length-1) should be (batch2)
@@ -100,16 +100,16 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
 
   property("BatchGen.eventually eventually produces data from the " + 
       "argument batch generator") = 
-    forAll ("batch" |: arbitrary[Batch[Int]]) { batch : Batch[Int] =>
-      forAll ("eventuallyDStream" |: BatchGen.eventually(batch)) { eventuallyDStream : PDStream[Int] =>
+    forAll ("batch" |: arbitrary[Window[Int]]) { batch : Window[Int] =>
+      forAll ("eventuallyDStream" |: WindowGen.eventually(batch)) { eventuallyDStream : PStream[Int] =>
         eventuallyDStream(eventuallyDStream.length-1) should be (batch)
         true
       }
     }
   
   property("BatchGen.always always produces data from the argument batch generator") = 
-    forAll ("batch" |: arbitrary[Batch[Int]]) { batch : Batch[Int] =>
-      forAll ("alwaysDStream" |: BatchGen.always(batch)) { alwaysDStream : PDStream[Int] =>
+    forAll ("batch" |: arbitrary[Window[Int]]) { batch : Window[Int] =>
+      forAll ("alwaysDStream" |: WindowGen.always(batch)) { alwaysDStream : PStream[Int] =>
         testForAll (alwaysDStream.toList) {_ should be (batch)}
         true
       }
@@ -117,11 +117,11 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   
   property("BatchGen.release is a weak relase, i.e either bg2 happens forever, " + 
       "or it happens until bg1 happens, including the  moment when bg1 happens")  =
-    forAll ("batch1" |: arbitrary[Batch[Int]], "batch2" |: arbitrary[Batch[Int]]) { 
-      (batch1 : Batch[Int], batch2 : Batch[Int]) =>
+    forAll ("batch1" |: arbitrary[Window[Int]], "batch2" |: arbitrary[Window[Int]]) {
+      (batch1 : Window[Int], batch2 : Window[Int]) =>
         // using constant generators
-        val g = BatchGen.release(batch1, batch2)
-        forAll ("releaseDStream" |: g) { releaseDStream : PDStream[Int] =>
+        val g = WindowGen.release(batch1, batch2)
+        forAll ("releaseDStream" |: g) { releaseDStream : PStream[Int] =>
           testForAll (releaseDStream.slice(0, releaseDStream.length-2)) { _ should be (batch2)}
           if (releaseDStream.length >0)
             releaseDStream(releaseDStream.length-1) should  
@@ -134,30 +134,30 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   // Tests for DStreamGen LTL inspired HO generators
   //
   // small DStream generator for costly tests
-  val smallDsg =  PDStreamGen.ofNtoM(0, 10, BatchGen.ofNtoM(0, 5, arbitrary[Int]))
+  val smallDsg =  PStreamGen.ofNtoM(0, 10, WindowGen.ofNtoM(0, 5, arbitrary[Int]))
   
   property("DStreamGen.next() returns a dstream generator that has exactly 1 + the " +
       "number of batches of its argument, the first one is emptyBatch, and the rest " + 
       "are the batches generated by its argument") = 
-    forAll ("dstream" |: arbitrary[PDStream[Int]])  { dstream : PDStream[Int] =>
+    forAll ("dstream" |: arbitrary[PStream[Int]])  { dstream : PStream[Int] =>
       // using a constant generator
-      val g = PDStreamGen.next(dstream)
-      forAll ("nextDStream" |: g) { nextDStream : PDStream[Int] =>
+      val g = PStreamGen.next(dstream)
+      forAll ("nextDStream" |: g) { nextDStream : PStream[Int] =>
         nextDStream should have length (1 + dstream.length)
-        nextDStream(0) should be (Batch.empty)
+        nextDStream(0) should be (Window.empty)
         nextDStream.slice(1, nextDStream.size) should be (dstream)
         true
       } 
     }
   
   property("DStreamGen.laterN(n, dsg) generates n batches and then dsg" ) =
-    forAll ("dstream" |: arbitrary[PDStream[Int]], "n" |: Gen.choose(-10, 30))  { 
-      (dstream : PDStream[Int], n : Int) =>
+    forAll ("dstream" |: arbitrary[PStream[Int]], "n" |: Gen.choose(-10, 30))  {
+      (dstream : PStream[Int], n : Int) =>
         // using a constant generator
-        val g = PDStreamGen.laterN(n, dstream)
-        forAll ("nextDStream" |: g) { nextDStream : PDStream[Int] =>
+        val g = PStreamGen.laterN(n, dstream)
+        forAll ("nextDStream" |: g) { nextDStream : PStream[Int] =>
           nextDStream should have length (math.max(0, n) + dstream.length)
-          testForAll (nextDStream.slice(0, n)) {_ should be (Batch.empty)}
+          testForAll (nextDStream.slice(0, n)) {_ should be (Window.empty)}
           nextDStream.slice(n, nextDStream.length) should be (dstream.toList)
           true  
         }
@@ -166,11 +166,11 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   property("DStreamGen.until is a strong until, i.e. the second generator always occurs, " +
       "and the first one occours before") = {
     // explicitly limiting generator sizes to avoid too slow tests
-    forAll ("dstream1" |: smallDsg, "dstream2" |: smallDsg) { (dstream1 : PDStream[Int], dstream2 : PDStream[Int]) =>
+    forAll ("dstream1" |: smallDsg, "dstream2" |: smallDsg) { (dstream1 : PStream[Int], dstream2 : PStream[Int]) =>
         // using constant generators
         val (dstream1Len, dstream2Len) = (dstream1.length, dstream2.length)
-        val g = PDStreamGen.until(dstream1, dstream2)
-        forAll ("untilDStream" |: g) { untilDStream : PDStream[Int] =>
+        val g = PStreamGen.until(dstream1, dstream2)
+        forAll ("untilDStream" |: g) { untilDStream : PStream[Int] =>
           for {i <- 0 until untilDStream.length - dstream1Len - dstream2Len} {
             dstream1 should beSubsetOf (untilDStream.slice(i, i + dstream1Len))
           }
@@ -198,8 +198,8 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   }
    
   property("DStreamGen.eventually eventually produces data from the argument generator") = 
-    forAll ("dstream" |: arbitrary[PDStream[Int]]) { dstream : PDStream[Int] =>
-      forAll ("eventuallyDStream" |: PDStreamGen.eventually(dstream)) { eventuallyDStream : PDStream[Int] =>
+    forAll ("dstream" |: arbitrary[PStream[Int]]) { dstream : PStream[Int] =>
+      forAll ("eventuallyDStream" |: PStreamGen.eventually(dstream)) { eventuallyDStream : PStream[Int] =>
         val eventuallyDStreamLen = eventuallyDStream.length
         val ending = eventuallyDStream.slice(eventuallyDStreamLen - dstream.length, eventuallyDStreamLen) 
         ending should be (dstream)
@@ -209,9 +209,9 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
   
   property("DStreamGen.always always produces data from the argument generator") =
     // explicitly limiting generator sizes to avoid too slow tests
-    forAll (smallDsg) { dstream : PDStream[Int] =>
+    forAll (smallDsg) { dstream : PStream[Int] =>
       val dstreamLen = dstream.length
-      forAll ("alwaysDStream" |: PDStreamGen.always(dstream)) { alwaysDStream : PDStream[Int] =>
+      forAll ("alwaysDStream" |: PStreamGen.always(dstream)) { alwaysDStream : PStream[Int] =>
         for {i <- 0 until alwaysDStream.length - dstreamLen} {
            dstream should beSubsetOf (alwaysDStream.slice(i, i + dstreamLen))
         }
@@ -224,11 +224,11 @@ object TLGenTest extends Properties("TLGen temporal logic generators properties"
      {
     // explicitly limiting generator sizes to avoid too slow tests
     forAll ("dstream1" |: smallDsg, "dstream2" |: smallDsg) { 
-      (dstream1 : PDStream[Int], dstream2 : PDStream[Int]) =>
+      (dstream1 : PStream[Int], dstream2 : PStream[Int]) =>
         // using constant generators
         val (dstream1Len, dstream2Len) = (dstream1.length, dstream2.length)
-        val g = PDStreamGen.release(dstream1, dstream2)
-        forAll ("releaseDStream" |: g) { releaseDStream : PDStream[Int] =>
+        val g = PStreamGen.release(dstream1, dstream2)
+        forAll ("releaseDStream" |: g) { releaseDStream : PStream[Int] =>
           // this is similar to always, but note the use of max to account for
           // the case when dstream1 happens and dstream1 is longer than dstream2
           // We don't check if dstream1 happens, because it might not

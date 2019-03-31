@@ -9,7 +9,7 @@ import org.scalatest._
 import org.scalatest.Matchers._
 import org.scalatest.prop.PropertyChecks._
 import org.scalatest.Inspectors.{forAll => testForAll}
-import PDStreamGenConversions._
+import PStreamGenConversions._
 
 /*
  * NOTE the use of the import alias org.scalatest.Inspectors.{forAll => testForAll} to
@@ -17,7 +17,7 @@ import PDStreamGenConversions._
  * forAll adapter for ScalaCheck 
  * */
 
-object PDStreamGenTest extends Properties("Properties class PDStreamGen") {  
+object PStreamGenTest extends Properties("Properties class PStreamGen") {
   property("""dstreamUnion() should respect expected batch sizes""") = {
     // using small lists as we'll use Prop.exists
     val (batchMaxSize, dstreamMaxSize) = (100, 20)
@@ -26,12 +26,12 @@ object PDStreamGenTest extends Properties("Properties class PDStreamGen") {
             "dstreamSize1" |: Gen.choose(0, dstreamMaxSize),
             "dstreamSize2" |: Gen.choose(0, dstreamMaxSize)) 
             { (batchSize1 : Int, batchSize2 : Int, dstreamSize1: Int, dstreamSize2: Int) => 
-      def batchGen1 : Gen[Batch[Int]] = BatchGen.ofN(batchSize1, arbitrary[Int])
-      def dstreamGen1 : Gen[PDStream[Int]] = PDStreamGen.ofN(dstreamSize1, batchGen1)
-      def batchGen2 : Gen[Batch[Int]] = BatchGen.ofN(batchSize2, arbitrary[Int])
-      def dstreamGen2 : Gen[PDStream[Int]] = PDStreamGen.ofN(dstreamSize2, batchGen2)
+      def batchGen1 : Gen[Window[Int]] = WindowGen.ofN(batchSize1, arbitrary[Int])
+      def dstreamGen1 : Gen[PStream[Int]] = PStreamGen.ofN(dstreamSize1, batchGen1)
+      def batchGen2 : Gen[Window[Int]] = WindowGen.ofN(batchSize2, arbitrary[Int])
+      def dstreamGen2 : Gen[PStream[Int]] = PStreamGen.ofN(dstreamSize2, batchGen2)
       val (gs1, gs2) = (dstreamGen1, dstreamGen2) 
-      forAll ("dsUnion" |: gs1  + gs2) { (dsUnion : PDStream[Int]) =>
+      forAll ("dsUnion" |: gs1  + gs2) { (dsUnion : PStream[Int]) =>
         collect (s"batchSize1=${batchSize1}, batchSize2=${batchSize2}, dstreamSize1=${dstreamSize1}, dstreamSize2=${dstreamSize2}") {
           dsUnion should have length (math.max(dstreamSize1, dstreamSize2))
           // if no batch is generated then the effective batch size is 0
@@ -41,12 +41,12 @@ object PDStreamGenTest extends Properties("Properties class PDStreamGen") {
             (effectiveBatchSize(dstreamSize1, batchSize1), effectiveBatchSize(dstreamSize2, batchSize2))
           // in general batches don't have the effectiveBatchSize1 + effectiveBatchSize2 size
           // because the smallest dstream is filled with empty batches
-          testForAll (dsUnion : Seq[Batch[Int]]) {
-            (batch : Batch[Int]) =>  batch.length should be <= (effectiveBatchSize1 + effectiveBatchSize2)
+          testForAll (dsUnion : Seq[Window[Int]]) {
+            (batch : Window[Int]) =>  batch.length should be <= (effectiveBatchSize1 + effectiveBatchSize2)
           }
           // but the batches in the prefix where both dstreams have not empty batches should
           // have a size of exactly effectiveBatchSize1 + effectiveBatchSize2 
-          testForAll (dsUnion.slice(0, math.min(dstreamSize1, dstreamSize2)) : Seq[Batch[Int]]) {
+          testForAll (dsUnion.slice(0, math.min(dstreamSize1, dstreamSize2)) : Seq[Window[Int]]) {
             _ should have length (effectiveBatchSize1 + effectiveBatchSize2)
           }
           true // need to finish like that when using ScalaCheck matchers

@@ -54,20 +54,20 @@ object Buildables {
     
   /** A Buildable for building an object Batch[T] from its elements of type T
    * */
-  implicit def buildableBatch[T] : Buildable[T, Batch[T]] = {      
+  implicit def buildableBatch[T] : Buildable[T, Window[T]] = {
     /* alternative implementation based on the overload of mapBuildable, implies additional
      * calls to identity
    
      mapBuildable(identity[T], (xs : List[T]) => Batch(xs))(implicitly[Buildable[T, List[T]]])
      */
-    mapBuildable((xs : List[T]) => Batch(xs:_*))(implicitly[Buildable[T, List[T]]])
+    mapBuildable((xs : List[T]) => Window(xs:_*))(implicitly[Buildable[T, List[T]]])
   }
     
   /** A Buildable for building an object DStream[T] from its batches of type Batch[T]
    * */
-  implicit def buildablePDStreamFromBatch[T] : Buildable[Batch[T], PDStream[T]] = 
-    mapBuildable((batches : List[Batch[T]]) => PDStream(batches:_*))(
-                 implicitly[Buildable[Batch[T], List[Batch[T]]]])
+  implicit def buildablePDStreamFromBatch[T] : Buildable[Window[T], PStream[T]] =
+    mapBuildable((batches : List[Window[T]]) => PStream(batches:_*))(
+                 implicitly[Buildable[Window[T], List[Window[T]]]])
   
   
 }
