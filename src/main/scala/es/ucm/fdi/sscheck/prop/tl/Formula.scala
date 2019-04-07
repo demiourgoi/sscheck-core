@@ -4,15 +4,14 @@ import org.specs2.execute.Result
 import org.scalacheck.Prop
 
 import scala.collection.GenSeq
-import scala.collection.parallel.TaskSupport
-
+import scala.collection.parallel.{ExecutionContextTaskSupport, TaskSupport}
 import scalaz.syntax.std.boolean._
 import scalaz.syntax.traverse._
 import scalaz.std.list._
 import scalaz.std.option._
-      
+
 import scala.annotation.tailrec
-import scala.language.{postfixOps,implicitConversions}
+import scala.language.{implicitConversions, postfixOps}
 object Formula {
   /** More succinct notation for timeouts when combined with TimeoutMissingFormula.on()  
    */
@@ -433,7 +432,7 @@ object NextOr {
 }
 class NextOr[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   def this(seqPhis: NextFormula[T]*) {
-    this(NextBinaryOp.parArgs[T](seqPhis:_*))
+    this(FormulaParallelism.par[T](seqPhis))
   }
   /** @return the result of computing the or of s1 and s2 in 
    *  the lattice of truth values, adding Exception which always
@@ -466,7 +465,7 @@ object NextAnd {
 }
 class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   def this(seqPhis: NextFormula[T]*) {
-    this(NextBinaryOp.parArgs[T](seqPhis:_*))
+    this(FormulaParallelism.par[T](seqPhis))
   }  
   /** @return the result of computing the and of s1 and s2 in 
    *  the lattice of truth values
@@ -487,6 +486,23 @@ class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
     status == Prop.False
 }
 
+object FormulaParallelism {
+  // default implicit FormulaParallelism https://stackoverflow.com/questions/12767074/how-to-provide-default-value-for-implicit-parameters-at-class-level
+  // NOTE: this implicit value needs to be defined on the companion object of the
+  // type this value is the default for
+  implicit val defaultFormulaParallelism: FormulaParallelism =
+    TaskSupportFormulaParallelism(new ExecutionContextTaskSupport())
+
+  def par[T](seqPhis: Seq[NextFormula[T]])
+            (implicit formulaParallelism: FormulaParallelism): GenSeq[NextFormula[T]] =
+    formulaParallelism match {
+      case TaskSupportFormulaParallelism(taskSupport) =>
+        val parPhis = seqPhis.par
+        parPhis.tasksupport = taskSupport
+        parPhis
+      case SequentialFormulaParallelism => seqPhis
+    }
+}
 /** If an implicit value of this type is available then formulas
   * are parallelized according to it. Otherwise [[https://docs.scala-lang.org/overviews/parallel-collections/overview.html parallel collections]]
   * with the default TaskSupport are used
@@ -500,18 +516,6 @@ case class TaskSupportFormulaParallelism(taskSupport: TaskSupport) extends Formu
   * engine that is used). */
 object SequentialFormulaParallelism extends FormulaParallelism
 
-object NextBinaryOp {
-  /** Parallelize seqPhis according to the configured [[FormulaParallelism]] */
-  def parArgs[T](seqPhis: NextFormula[T]*)
-                (implicit formulaParallelismOpt: Option[FormulaParallelism] = None): GenSeq[NextFormula[T]] =
-    formulaParallelismOpt.fold[GenSeq[NextFormula[T]]](seqPhis.par){
-      case TaskSupportFormulaParallelism(taskSupport) =>
-        val parPhis = seqPhis.par
-        parPhis.tasksupport = taskSupport
-        parPhis
-      case SequentialFormulaParallelism => seqPhis
-    }
-}
 /** Abstract the functionality of NextAnd and NextOr, which are binary
  *  boolean operators that apply to a collection of formulas with a reduce()
  *  */
