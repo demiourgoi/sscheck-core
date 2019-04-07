@@ -3,7 +3,8 @@ package es.ucm.fdi.sscheck.prop.tl
 import org.specs2.execute.Result
 import org.scalacheck.Prop
 
-import scala.collection.parallel.ParSeq
+import scala.collection.GenSeq
+import scala.collection.parallel.TaskSupport
 
 import scalaz.syntax.std.boolean._
 import scalaz.syntax.traverse._
@@ -430,7 +431,7 @@ case class Or[T](phis : Formula[T]*) extends Formula[T] {
 object NextOr {
   def apply[T](phis: NextFormula[T]*): NextFormula[T] = if (phis.length == 1) phis(0) else new NextOr(phis:_*)
 }
-class NextOr[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
+class NextOr[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   def this(seqPhis: NextFormula[T]*) {
     this(NextBinaryOp.parArgs[T](seqPhis:_*))
   }
@@ -447,7 +448,7 @@ class NextOr[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
       case (Prop.Undecided, Prop.False) => Prop.Undecided
       case _ => s2
     }  
-  override protected def build(phis: ParSeq[NextFormula[T]]) = 
+  override protected def build(phis: GenSeq[NextFormula[T]]) =
     new NextOr(phis)
   override protected def isSolverStatus(status: Prop.Status) = 
     (status == Prop.True) || (status == Prop.Proof)
@@ -463,7 +464,7 @@ case class And[T](phis : Formula[T]*) extends Formula[T] {
 object NextAnd {
   def apply[T](phis: NextFormula[T]*): NextFormula[T] = if (phis.length == 1) phis(0) else new NextAnd(phis:_*)
 }
-class NextAnd[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
+class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   def this(seqPhis: NextFormula[T]*) {
     this(NextBinaryOp.parArgs[T](seqPhis:_*))
   }  
@@ -480,24 +481,41 @@ class NextAnd[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
       case (Prop.True, _) => s2
       case (Prop.Proof, _) => s2
     }
-  override protected def build(phis: ParSeq[NextFormula[T]]) = 
+  override protected def build(phis: GenSeq[NextFormula[T]]) =
     new NextAnd(phis)
   override protected def isSolverStatus(status: Prop.Status) = 
     status == Prop.False
 }
 
+/** If an implicit value of this type is available then formulas
+  * are parallelized according to it. Otherwise [[https://docs.scala-lang.org/overviews/parallel-collections/overview.html parallel collections]]
+  * with the default TaskSupport are used
+  * */
+sealed trait FormulaParallelism
+/** Or and And operators arguments are parallelized as parallel collections with the specified task support. This means
+  * we can e.g. launch actions concurrently from the driver to a Spark runtime.
+  * */
+case class TaskSupportFormulaParallelism(taskSupport: TaskSupport) extends FormulaParallelism
+/** There is no parallelism in the formulas (but we still employ the parallel computing features of the distributed
+  * engine that is used). */
+object SequentialFormulaParallelism extends FormulaParallelism
+
 object NextBinaryOp {
-  def parArgs[T](seqPhis: NextFormula[T]*): ParSeq[NextFormula[T]] = {
-    // TODO could use seqPhis.par.tasksupport here 
-    // to configure parallelization details, see 
-    // http://docs.scala-lang.org/overviews/parallel-collections/configuration
-    seqPhis.par
-  } 
+  /** Parallelize seqPhis according to the configured [[FormulaParallelism]] */
+  def parArgs[T](seqPhis: NextFormula[T]*)
+                (implicit formulaParallelismOpt: Option[FormulaParallelism] = None): GenSeq[NextFormula[T]] =
+    formulaParallelismOpt.fold[GenSeq[NextFormula[T]]](seqPhis.par){
+      case TaskSupportFormulaParallelism(taskSupport) =>
+        val parPhis = seqPhis.par
+        parPhis.tasksupport = taskSupport
+        parPhis
+      case SequentialFormulaParallelism => seqPhis
+    }
 }
 /** Abstract the functionality of NextAnd and NextOr, which are binary
  *  boolean operators that apply to a collection of formulas with a reduce()
  *  */
-abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]]) 
+abstract class NextBinaryOp[T](phis: GenSeq[NextFormula[T]])
   extends Function2[Prop.Status, Prop.Status, Prop.Status] 
   with NextFormula[T] {
   
@@ -505,7 +523,7 @@ abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
   // following http://stackoverflow.com/questions/9172775/get-companion-object-of-class-by-given-generic-type-scala, a
   // or something in the line of scala.collection.generic.GenericCompanion (used e.g. in Seq.companion()),
   // and then calling apply to build  
-  protected def build(phis: ParSeq[NextFormula[T]]): NextFormula[T]
+  protected def build(phis: GenSeq[NextFormula[T]]): NextFormula[T]
   
   /* return true if status solves this operator: e.g. Prop.True
    * or  Prop.Proof resolve and or without evaluating anything else, 
