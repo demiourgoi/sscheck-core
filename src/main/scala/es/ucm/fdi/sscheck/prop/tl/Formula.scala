@@ -13,6 +13,10 @@ import scalaz.std.option._
 import scala.annotation.tailrec
 import scala.language.{implicitConversions, postfixOps}
 object Formula {
+  // default implicit FormulaParallelism https://stackoverflow.com/questions/12767074/how-to-provide-default-value-for-implicit-parameters-at-class-level
+  implicit val defaultFormulaParallelism: FormulaParallelism =
+    TaskSupportFormulaParallelism(new ExecutionContextTaskSupport())
+
   /** More succinct notation for timeouts when combined with TimeoutMissingFormula.on()  
    */
   implicit def intToTimeout(t : Int) : Timeout = Timeout(t)
@@ -226,7 +230,7 @@ sealed trait Formula[T]
   import Formula._
 
   def safeWordLength: Option[Timeout]
-  def nextFormula: NextFormula[T]
+  def nextFormula(implicit par: FormulaParallelism): NextFormula[T]
 
   // non temporal builder methods
   def unary_! = Not(this)
@@ -287,7 +291,7 @@ sealed trait Formula[T]
  */
 sealed trait NextFormula[T]
   extends Formula[T] {
-  override def nextFormula = this
+  override def nextFormula(implicit par: FormulaParallelism) = this
 
   /** @return Option.Some if this formula is resolved, and Option.None
    *  if it is still pending resolution when some additional values
@@ -302,7 +306,7 @@ sealed trait NextFormula[T]
    *  at a new instant of time time. This corresponds to the notion of "letter simplification"
    *  in the paper
    */
-  def consume(time: Time)(atoms: T): NextFormula[T]
+  def consume(time: Time)(atoms: T)(implicit par: FormulaParallelism): NextFormula[T]
 }
 
 /** Resolved formulas
@@ -319,7 +323,8 @@ case class Solved[T](status : Prop.Status) extends NextFormula[T] {
   override def result = Some(status)
   // do no raise an exception in call to consume, because with NextOr we will
   // keep undecided prop values until the rest of the formula in unraveled
-  override def consume(time: Time)(atoms : T) = this
+  override def consume(time: Time)(atoms : T)
+                      (implicit par: FormulaParallelism) = this
 }
 
 /** This class adds information to the time and atom consumption functions
@@ -386,12 +391,13 @@ case class BindNext[T](timedAtomsConsumer: TimedAtomsConsumer[T])
   override def safeWordLength = 
     (!timedAtomsConsumer.returnsDynamicFormula) option Timeout(1)
   override def result = None
-  override def consume(time: Time)(atoms: T) = 
+  override def consume(time: Time)(atoms: T)(implicit par: FormulaParallelism) =
     timedAtomsConsumer(time)(atoms).nextFormula 
 }
 case class Not[T](phi : Formula[T]) extends Formula[T] {
   override def safeWordLength = phi safeWordLength
-  override def nextFormula: NextFormula[T] = new NextNot(phi.nextFormula)
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
+    new NextNot(phi.nextFormula)
 }
 
 class NextNot[T](phi : NextFormula[T]) extends Not[T](phi) with NextFormula[T] {
@@ -399,7 +405,7 @@ class NextNot[T](phi : NextFormula[T]) extends Not[T](phi) with NextFormula[T] {
   /** Note in the implementation of or we add Exception to the truth lattice, 
   * which always absorbs other values to signal a test evaluation error
   * */
-  override def consume(time: Time)(atoms : T) = {
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = {
     val phiConsumed = phi.consume(time)(atoms)
     phiConsumed.result match {
       case Some(res) => 
@@ -425,15 +431,15 @@ case class Or[T](phis : Formula[T]*) extends Formula[T] {
         .toList.sequence
         .map(_.maxBy(_.instants))
   
-  override def nextFormula = NextOr(phis.map(_.nextFormula):_*)
+  override def nextFormula(implicit par: FormulaParallelism) =
+    NextOr(phis.map(_.nextFormula):_*)
 }
 object NextOr {
-  def apply[T](phis: NextFormula[T]*): NextFormula[T] = if (phis.length == 1) phis(0) else new NextOr(phis:_*)
+  def apply[T](phis: NextFormula[T]*)(implicit par: FormulaParallelism): NextFormula[T] =
+    if (phis.length == 1) phis(0)
+    else new NextOr(FormulaParallelism.par[T](par, phis))
 }
 class NextOr[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
-  def this(seqPhis: NextFormula[T]*) {
-    this(FormulaParallelism.par[T](seqPhis))
-  }
   /** @return the result of computing the or of s1 and s2 in 
    *  the lattice of truth values, adding Exception which always
    *  absorbs other values to signal a test evaluation error
@@ -458,16 +464,16 @@ case class And[T](phis : Formula[T]*) extends Formula[T] {
     phis.map(_.safeWordLength)
         .toList.sequence
         .map(_.maxBy(_.instants))
-  override def nextFormula = NextAnd(phis.map(_.nextFormula):_*)
+  override def nextFormula(implicit par: FormulaParallelism) =
+    NextAnd(phis.map(_.nextFormula):_*)
 }
 object NextAnd {
-  def apply[T](phis: NextFormula[T]*): NextFormula[T] = if (phis.length == 1) phis(0) else new NextAnd(phis:_*)
+  def apply[T](phis: NextFormula[T]*)(implicit par: FormulaParallelism): NextFormula[T] =
+    if (phis.length == 1) phis(0)
+    else new NextAnd(FormulaParallelism.par[T](par, phis))
 }
 class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
-  def this(seqPhis: NextFormula[T]*) {
-    this(FormulaParallelism.par[T](seqPhis))
-  }  
-  /** @return the result of computing the and of s1 and s2 in 
+  /** @return the result of computing the and of s1 and s2 in
    *  the lattice of truth values
    */
   override def apply(s1: Prop.Status, s2: Prop.Status): Prop.Status =
@@ -487,14 +493,8 @@ class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
 }
 
 object FormulaParallelism {
-  // default implicit FormulaParallelism https://stackoverflow.com/questions/12767074/how-to-provide-default-value-for-implicit-parameters-at-class-level
-  // NOTE: this implicit value needs to be defined on the companion object of the
-  // type this value is the default for
-  implicit val defaultFormulaParallelism: FormulaParallelism =
-    TaskSupportFormulaParallelism(new ExecutionContextTaskSupport())
-
-  def par[T](seqPhis: Seq[NextFormula[T]])
-            (implicit formulaParallelism: FormulaParallelism): GenSeq[NextFormula[T]] =
+  def par[T](formulaParallelism: FormulaParallelism,
+             seqPhis: Seq[NextFormula[T]]): GenSeq[NextFormula[T]] =
     formulaParallelism match {
       case TaskSupportFormulaParallelism(taskSupport) =>
         val parPhis = seqPhis.par
@@ -539,7 +539,7 @@ abstract class NextBinaryOp[T](phis: GenSeq[NextFormula[T]])
         .toList.sequence
         .map(_.maxBy(_.instants))
   override def result = None
-  override def consume(time: Time)(atoms : T) = {
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = {
     val (phisDefined, phisUndefined) = phis
       .map { _.consume(time)(atoms) }
       .partition { _.result.isDefined }     
@@ -574,13 +574,15 @@ case class Implies[T](phi1 : Formula[T], phi2 : Formula[T]) extends Formula[T] {
     safeLength2 <- phi2.safeWordLength 
   } yield safeLength1 max safeLength2
   
-  override def nextFormula = NextOr(new NextNot(phi1.nextFormula), phi2.nextFormula)
+  override def nextFormula(implicit par: FormulaParallelism) =
+    NextOr(new NextNot(phi1.nextFormula), phi2.nextFormula)
 }
 
 case class Next[T](phi : Formula[T]) extends Formula[T] {
   import Formula.intToTimeout
   override def safeWordLength = phi.safeWordLength.map(_ + 1)
-  override def nextFormula = NextNext(phi.nextFormula)
+  override def nextFormula(implicit par: FormulaParallelism) =
+    NextNext(phi.nextFormula)
 }
 object NextNext {
   def apply[T](phi: => NextFormula[T]): NextFormula[T] = new NextNext(phi)
@@ -592,7 +594,7 @@ class NextNext[T](_phi: => NextFormula[T]) extends NextFormula[T] {
   override def safeWordLength = phi.safeWordLength.map(_ + 1)
     
   override def result = None
-  override def consume(time: Time)(atoms : T) = phi
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = phi
 }
 
 case class Eventually[T](phi : Formula[T], t : Timeout) extends Formula[T] {
@@ -601,7 +603,7 @@ case class Eventually[T](phi : Formula[T], t : Timeout) extends Formula[T] {
   import Formula.intToTimeout
   override def safeWordLength = phi.safeWordLength.map(_ + t - 1)
   
-  override def nextFormula = {
+  override def nextFormula(implicit par: FormulaParallelism) = {
     val nextPhi = phi.nextFormula
     if (t.instants <= 1) nextPhi 
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -613,7 +615,7 @@ case class Always[T](phi : Formula[T], t : Timeout) extends Formula[T] {
   
   import Formula.intToTimeout
   override def safeWordLength = phi.safeWordLength.map(_ + t - 1)
-  override def nextFormula = {
+  override def nextFormula(implicit par: FormulaParallelism) = {
     val nextPhi = phi.nextFormula
     if (t.instants <= 1) nextPhi 
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -629,7 +631,7 @@ case class Until[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends F
     safeLength2 <- phi2.safeWordLength 
   } yield (safeLength1 max safeLength2) + t -1 
     
-  override def nextFormula = {
+  override def nextFormula(implicit par: FormulaParallelism) = {
     val (nextPhi1, nextPhi2) = (phi1.nextFormula, phi2.nextFormula)
     if (t.instants <= 1) nextPhi2
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -646,7 +648,7 @@ case class Release[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends
     safeLength2 <- phi2.safeWordLength 
   } yield (safeLength1 max safeLength2) + t -1
   
-  override def nextFormula = {
+  override def nextFormula(implicit par: FormulaParallelism) = {
     val (nextPhi1, nextPhi2) = (phi1.nextFormula, phi2.nextFormula)
     if (t.instants <= 1) NextAnd(nextPhi1, nextPhi2)
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
