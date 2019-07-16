@@ -156,6 +156,38 @@ after the first one
     */
   def nowTimeS[T](letterToStatus: (T, Time) => Prop.Status): BindNext[T] = BindNext.fromStatusTimeFun(letterToStatus)
 
+  /** @return an application of BindNext to letterToFormula: the result of applying
+    *         letterToFormula to the current letter must hold in the next instant
+    * */
+  def consume[T](letterToFormula: T => Formula[T]): Formula[T] = BindNext.fromAtomsConsumer(letterToFormula)
+
+  /** @return a formula where the result of applying letterToStatus to the
+    *         current letter must hold in the next instant
+    */
+  def consumeS[T](letterToStatus: T => Prop.Status): BindNext[T] = BindNext.fromStatusFun(letterToStatus)
+
+  /** @return a formula where the result of applying letterToResult to the
+    *         current letter must hold in the next instant
+    */
+  def consumeR[T](letterToResult: T => Result): BindNext[T] = BindNext(letterToResult)
+
+  /** @return an application of BindNext to letterToFormula: the result of applying
+    *         letterToFormula to the current letter must hold in the next instant
+    * */
+  def consumeTime[T](letterToFormula: (T, Time) => Formula[T]): Formula[T] =
+    BindNext.fromAtomsTimeConsumer(letterToFormula)
+
+  /** @return a formula where the result of applying letterToStatus to the
+    *         current letter must hold in the next instant
+    */
+  def consumeTimeS[T](letterToStatus: (T, Time) => Prop.Status): BindNext[T] =
+    BindNext.fromStatusTimeFun(letterToStatus)
+
+  /** @return a formula where the result of applying letterToResult to the
+    *         current letter must hold in the next instant
+    */
+  def consumeTimeR[T](letterToResult: (T, Time) => Result): BindNext[T] = BindNext(letterToResult)
+
   def eventually[T](phi: Formula[T]): TimeoutMissingFormula[T] =
     new TimeoutMissingFormula[T](Eventually(phi, _))
   /** @return a formula where eventually the result of applying letterToFormula to the
