@@ -2,7 +2,7 @@ name := "sscheck-core"
 
 organization := "es.ucm.fdi"
 
-version := "0.4.1"
+version := "0.4.2-SNAPSHOT"
 
 scalaVersion := "2.11.8"
 
