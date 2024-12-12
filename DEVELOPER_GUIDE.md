@@ -11,3 +11,4 @@ Maven repos only allow republish of ${version}-SNAPSHOT versions, so:
   - Change version to "${version}" without "-SNAPSHOT" and publish to maven central. 
   - Commit that change as the latest commit for this branch: this freezes the release. I don't use git tags for now as there is no need, and maven central blocks new publishes anyways
   - Create a new branch increasing the patch version, with "-SNAPSHOT" as above. We can always increase the minor or major version later.
+  - Change the default branch in [Github settings](https://github.com/demiourgoi/sscheck-core/settings) to the new branch. 
