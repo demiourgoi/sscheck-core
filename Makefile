@@ -20,7 +20,7 @@ else
 		$(MAKEFILE_LIST) | grep -v '@awk' | sort
 endif
 
-release: clean build	### run all release checks
+release: clean build docs	### run all release checks
 	echo "PASS all release checks"
 
 clean:	### cleanup the build
@@ -30,3 +30,6 @@ build:	### build app (this also runs unit tests)
 	$(GRADLE) build
 	echo "See test report at file://$(ROOT_DIR)/lib/build/reports/tests/test/index.html"
 
+docs:	### generate HTML documentation
+	$(GRADLE) dokkaHtml
+	echo "See HTML documentation at file://$(ROOT_DIR)/lib/build/dokka/html/index.html"

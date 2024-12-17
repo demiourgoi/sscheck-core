@@ -11,7 +11,20 @@ plugins {
 
     // Apply the java-library plugin for API and implementation separation.
     `java-library`
+
+    // Documentation generator.
+    // https://github.com/Kotlin/dokka
+    id("org.jetbrains.dokka") version "1.9.20"
+
+    // https://central.sonatype.org/publish/publish-gradle/
+    // https://docs.gradle.org/current/userguide/publishing_maven.html
+    `maven-publish`
+    signing
 }
+
+group = "es.ucm.fdi.demiourgoi"
+// https://central.sonatype.org/publish/publish-guide/ only versions with "-SNAPSHOT" suffix can be republished
+version = "0.5.0-SNAPSHOT"
 
 repositories {
     // Use Maven Central for resolving dependencies.
@@ -39,6 +52,17 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(20)
     }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// https://github.com/Kotlin/dokka/issues/42
+val javadocJar = tasks.named<Jar>("javadocJar") {
+    from(tasks.named("dokkaJavadoc"))
+}
+
+base {
+    archivesName = rootProject.name
 }
 
 tasks.named<Test>("test") {
