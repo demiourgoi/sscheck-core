@@ -69,3 +69,56 @@ tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
 }
+
+// https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:complete_example
+// https://central.sonatype.org/publish/publish-gradle/#metadata-definition-and-upload
+// https://central.sonatype.org/publish/publish-guide/#accessing-repositories
+// https://stackoverflow.com/questions/74817917/error-publishing-to-sonatype-because-repositoryurl-is-null
+val ossrhRepositoryUrl = if (version.toString().endsWith("SNAPSHOT")) {
+    "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+} else {
+    "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+}
+// https://docs.gradle.org/current/userguide/build_environment.html#sec:project_properties
+// Maven central credentials should be defined as env vars ORG_GRADLE_PROJECT_ossrhUsername and ORG_GRADLE_PROJECT_ossrhPassword
+// See https://central.sonatype.org/publish/generate-token/ for generating credendials
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "sscheck-core"
+            from(components["java"])
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionOf("runtimeClasspath")
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = "Sscheck core"
+                description = "Distributed computing engine independent code for sscheck"
+                url = "https://github.com/demiourgoi"
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "juanrh"
+                        name = "Juan Rodriguez Hortala"
+                        url = "https://juanrh.github.io"
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven(ossrhRepositoryUrl) {
+            name = "ossrh"
+            credentials(PasswordCredentials::class)
+        }
+    }
+}
