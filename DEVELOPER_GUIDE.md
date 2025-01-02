@@ -1,5 +1,15 @@
 # sscheck-core developer guide
 
+## How to build the code
+
+Run `make` to see the basic build targets.  
+`make release` builds the code, runs all code checks, and publishes to the local maven repo.
+
+## Maven artifact publishing
+
+Maven publishing is not setup yet.  
+Use `make publishLocal` to publish to the local maven repo. 
+
 ## Versioning and git branching strategy
 
 Versions use [semantic versioning](https://semver.org/).  

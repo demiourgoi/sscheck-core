@@ -20,16 +20,25 @@ else
 		$(MAKEFILE_LIST) | grep -v '@awk' | sort
 endif
 
-release: clean build docs	### run all release checks
+.PHONY: release
+release: clean build docs publishLocal	### run all release checks
 	echo "PASS all release checks"
 
+.PHONY: clean
 clean:	### cleanup the build
 	$(GRADLE) clean
 
+.PHONY: build
 build:	### build app (this also runs unit tests)
 	$(GRADLE) build
 	echo "See test report at file://$(ROOT_DIR)/lib/build/reports/tests/test/index.html"
 
+.PHONY: docs
 docs:	### generate HTML documentation
 	$(GRADLE) dokkaHtml
 	echo "See HTML documentation at file://$(ROOT_DIR)/lib/build/dokka/html/index.html"
+
+.PHONY: publishLocal
+publishLocal:	### publish to local maven repo
+	$(GRADLE) publishToMavenLocal
+	ls -al ~/.m2/repository/es/ucm/fdi/demiourgoi/sscheck-core
