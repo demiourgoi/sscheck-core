@@ -3,7 +3,10 @@ package es.ucm.fdi.sscheck.prop.tl
 import org.specs2.execute.Result
 import org.scalacheck.Prop
 
-import scala.collection.GenSeq
+// Explicit import is required since parallel collections are not in the standard lib
+// https://stackoverflow.com/questions/57287607/missing-par-method-from-scala-collections
+import scala.collection.parallel.CollectionConverters._
+import scala.collection.parallel.ParSeq
 import scala.collection.parallel.{ExecutionContextTaskSupport, TaskSupport}
 import scalaz.syntax.std.boolean._
 import scalaz.syntax.traverse._
@@ -471,7 +474,7 @@ object NextOr {
     if (phis.length == 1) phis(0)
     else new NextOr(FormulaParallelism.par[T](par, phis))
 }
-class NextOr[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
+class NextOr[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   /** @return the result of computing the or of s1 and s2 in 
    *  the lattice of truth values, adding Exception which always
    *  absorbs other values to signal a test evaluation error
@@ -485,7 +488,7 @@ class NextOr[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
       case (Prop.Undecided, Prop.False) => Prop.Undecided
       case _ => s2
     }  
-  override protected def build(phis: GenSeq[NextFormula[T]]) =
+  override protected def build(phis: ParSeq[NextFormula[T]]) =
     new NextOr(phis)
   override protected def isSolverStatus(status: Prop.Status) = 
     (status == Prop.True) || (status == Prop.Proof)
@@ -504,7 +507,7 @@ object NextAnd {
     if (phis.length == 1) phis(0)
     else new NextAnd(FormulaParallelism.par[T](par, phis))
 }
-class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
+class NextAnd[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
   /** @return the result of computing the and of s1 and s2 in
    *  the lattice of truth values
    */
@@ -518,7 +521,7 @@ class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
       case (Prop.True, _) => s2
       case (Prop.Proof, _) => s2
     }
-  override protected def build(phis: GenSeq[NextFormula[T]]) =
+  override protected def build(phis: ParSeq[NextFormula[T]]) =
     new NextAnd(phis)
   override protected def isSolverStatus(status: Prop.Status) = 
     status == Prop.False
@@ -526,13 +529,14 @@ class NextAnd[T](phis: GenSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
 
 object FormulaParallelism {
   def par[T](formulaParallelism: FormulaParallelism,
-             seqPhis: Seq[NextFormula[T]]): GenSeq[NextFormula[T]] =
+             seqPhis: Seq[NextFormula[T]]): ParSeq[NextFormula[T]] =
     formulaParallelism match {
       case TaskSupportFormulaParallelism(taskSupport) =>
         val parPhis = seqPhis.par
         parPhis.tasksupport = taskSupport
         parPhis
-      case SequentialFormulaParallelism => seqPhis
+      case SequentialFormulaParallelism => 
+        throw new NotImplementedError("SequentialFormulaParallelism not implemented after migration to Scala 2.13")
     }
 }
 /** If an implicit value of this type is available then formulas
@@ -551,7 +555,7 @@ object SequentialFormulaParallelism extends FormulaParallelism
 /** Abstract the functionality of NextAnd and NextOr, which are binary
  *  boolean operators that apply to a collection of formulas with a reduce()
  *  */
-abstract class NextBinaryOp[T](phis: GenSeq[NextFormula[T]])
+abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
   extends Function2[Prop.Status, Prop.Status, Prop.Status] 
   with NextFormula[T] {
   
@@ -559,7 +563,7 @@ abstract class NextBinaryOp[T](phis: GenSeq[NextFormula[T]])
   // following http://stackoverflow.com/questions/9172775/get-companion-object-of-class-by-given-generic-type-scala, a
   // or something in the line of scala.collection.generic.GenericCompanion (used e.g. in Seq.companion()),
   // and then calling apply to build  
-  protected def build(phis: GenSeq[NextFormula[T]]): NextFormula[T]
+  protected def build(phis: ParSeq[NextFormula[T]]): NextFormula[T]
   
   /* return true if status solves this operator: e.g. Prop.True
    * or  Prop.Proof resolve and or without evaluating anything else, 

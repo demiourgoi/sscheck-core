@@ -1,24 +1,29 @@
 package es.ucm.fdi.sscheck.gen
 
-import org.scalatest.matchers.{Matcher, MatchResult}
 import scala.language.implicitConversions
+import scala.collection.mutable.{Seq => MSeq}
+import scala.collection.mutable.ListBuffer
+import org.scalatest.matchers.{Matcher, MatchResult}
 
 object PStream {
-  def empty[A] : PStream[A] = new PStream(List():_*)
+  def apply[A](windows : Window[A]*): PStream[A] = new PStream(ListBuffer.from(windows))
+  def empty[A] : PStream[A] = new PStream(ListBuffer.empty)
 
   implicit def batchSeq2dstream[A](windows : Seq[Window[A]]) : PStream[A] = PStream(windows:_*)
+  implicit def batchMSeq2dstream[A](windows : MSeq[Window[A]]) : PStream[A] = new PStream(windows)
   implicit def seqSeq2dstream[A](windows : Seq[Seq[A]]) : PStream[A] = PStream(windows.map(Window[A](_:_*)):_*)
+  implicit def seqMSeq2dstream[A](windows : Seq[MSeq[A]]) : PStream[A] = new PStream(windows.map(Window(_)))
+  implicit def mseqMSeq2dstream[A](windows : MSeq[MSeq[A]]) : PStream[A] = PStream(windows)
 }
 
 /** An object of this class represents a finite prefix of a discrete data streams,
  *  aka prefix DStream or just PDStream
  * */
-case class PStream[A](windows : Window[A]*) extends Seq[Window[A]] {
-  override def toSeq : Seq[Window[A]] = windows
-
+case class PStream[A](windows : MSeq[Window[A]]) extends MSeq[Window[A]] {
   override def apply(idx : Int) = windows.apply(idx)
   override def iterator = windows.iterator
   override def length = windows.length
+  override def update(idx: Int, elem: Window[A]): Unit = windows.update(idx, elem)
 
   // Note def ++(other : DStream[A]) : DStream[A] is inherited from Seq[_]
 

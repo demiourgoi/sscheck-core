@@ -1,16 +1,17 @@
 package es.ucm.fdi.sscheck.gen
 
+import scala.collection.{Seq => MSeq}
 import org.scalacheck.util.Buildable
 import scala.language.{implicitConversions,higherKinds,postfixOps}
 
 object Buildables {
-  /** Buildable for Seq, so we can use Gen.containerOf and Arbitrary.arbitrary
-  *  using Seq as a container
+  /** Buildable for MSeq, so we can use Gen.containerOf and Arbitrary.arbitrary
+  *  using MSeq as a container
   *  */
-  implicit def buildableSeq[T] = new Buildable[T, Seq[T]] {
-    def builder = new collection.mutable.Builder[T,Seq[T]] {
+  implicit def buildableSeq[T] = new Buildable[T, MSeq[T]] {
+    def builder = new collection.mutable.Builder[T,MSeq[T]] {
     var xs : List[T] = List() 
-      def +=(x: T) = {
+      def addOne(x: T) = {
        xs = x :: xs
        this
       }
@@ -27,7 +28,7 @@ object Buildables {
     : Buildable[T2, C2[T2]] = new Buildable[T2, C2[T2]] { 
       def builder = new collection.mutable.Builder[T2,C2[T2]] {
         var nestedBuilder : collection.mutable.Builder[T1, C1[T1]] = buildable.builder
-        def +=(x : T2) = {
+        def addOne(x : T2) = {
           nestedBuilder += elemMapping(x)
           this
         }
@@ -43,7 +44,7 @@ object Buildables {
     : Buildable[T, R2] = new Buildable[T, R2] { 
       def builder = new collection.mutable.Builder[T,R2] {
       var nestedBuilder : collection.mutable.Builder[T, R1] = buildable.builder
-        def +=(x : T) = {
+        def addOne(x : T) = {
           nestedBuilder += x
           this
         }

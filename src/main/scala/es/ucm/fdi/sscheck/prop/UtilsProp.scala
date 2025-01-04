@@ -4,7 +4,7 @@ import org.scalacheck.{Properties, Gen}
 import org.scalacheck.Prop.{forAll, exists, AnyOperators}
 import org.scalacheck.Prop
 import org.scalatest._
-import org.scalatest.Matchers._
+import org.scalatest.exceptions.TestFailedException
 import org.specs2.matcher.MatchFailureException
 import scala.util.{Try, Success, Failure}
 import org.scalacheck.util.Pretty

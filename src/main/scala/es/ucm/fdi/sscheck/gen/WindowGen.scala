@@ -1,5 +1,7 @@
 package es.ucm.fdi.sscheck.gen
 
+import scala.collection.mutable.{Seq => MSeq}
+
 import org.scalacheck.Gen
 import org.scalacheck.Shrink
 import org.scalacheck.Shrink.shrink
@@ -13,8 +15,8 @@ import es.ucm.fdi.sscheck.prop.tl.Timeout
 object BatchGenConversions {
   implicit def genBatch2BatchGen[A](bg : Gen[Window[A]]) : WindowGen[A] = WindowGen(bg)
 
-  implicit def batchGen2seqGen[A](g : Gen[Window[A]]) : Gen[Seq[A]] = g.map(_.toSeq)
-  implicit def seqGen2batchGen[A](g : Gen[Seq[A]]) : Gen[Window[A]] = g.map(Window(_:_*))
+  implicit def batchGen2seqGen[A](g : Gen[Window[A]]) : Gen[MSeq[A]] = g.map(_.points)
+  implicit def seqGen2batchGen[A](g : Gen[MSeq[A]]) : Gen[Window[A]] = g.map(Window[A](_))
 }
 
 /**

@@ -1,9 +1,10 @@
 package es.ucm.fdi.sscheck.gen
 
+import scala.language.implicitConversions
+import scala.collection.mutable.{Seq => MSeq}
 import org.scalacheck.Gen
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
-import scala.language.implicitConversions
 import es.ucm.fdi.sscheck.prop.tl.Timeout
 
 /** Implicit conversions removed from BatchGen companion. This is needed
@@ -13,8 +14,8 @@ import es.ucm.fdi.sscheck.prop.tl.Timeout
 object PStreamGenConversions {
   implicit def genDStream2DStreamGen[A](dsg : Gen[PStream[A]]) : PStreamGen[A] = PStreamGen(dsg)
 
-  implicit def dstreamGen2batchSeqGen[A](gs : Gen[PStream[A]]) : Gen[Seq[Window[A]]] = gs.map(_.toSeq)
-  implicit def batchSeqGen2dstreamGen[A](gs : Gen[Seq[Window[A]]]) : Gen[PStream[A]] = gs.map(PStream(_:_*))
+  implicit def dstreamGen2batchSeqGen[A](gs : Gen[PStream[A]]) : Gen[MSeq[Window[A]]] = gs.map(_.toSeq)
+  implicit def batchSeqGen2dstreamGen[A](gs : Gen[MSeq[Window[A]]]) : Gen[PStream[A]] = gs.map(PStream(_))
 }
 
 /**
