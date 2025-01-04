@@ -32,16 +32,15 @@ repositories {
 }
 
 dependencies {
-    // Use the Kotlin JUnit 5 integration.
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    val kotestVersion = "5.9.1"
+    testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
+    testImplementation("io.kotest:kotest-framework-datatest:$kotestVersion")
 
-    // Use the JUnit 5 integration.
-    testImplementation(libs.junit.jupiter.engine)
-
+    // https://kotest.io/docs/framework/project-setup.html
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // This dependency is exported to consumers, that is to say found on their compile classpath.
-    api(libs.commons.math3)
+    // FIXME api(libs.commons.math3)
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation(libs.guava)
@@ -68,6 +67,7 @@ base {
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+    testLogging.showStandardStreams = true
 }
 
 // https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:complete_example
