@@ -6,8 +6,7 @@ import org.scalacheck.Prop.{forAll, exists, AnyOperators, collect}
 // import Buildables.buildableSeq
 import Buildables._
 import org.scalatest._
-import org.scalatest.Matchers._
-import org.scalatest.prop.PropertyChecks._
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.Inspectors.{forAll => testForAll}
 import PStreamGenConversions._
 
@@ -41,12 +40,12 @@ object PStreamGenTest extends Properties("Properties class PStreamGen") {
             (effectiveBatchSize(dstreamSize1, batchSize1), effectiveBatchSize(dstreamSize2, batchSize2))
           // in general batches don't have the effectiveBatchSize1 + effectiveBatchSize2 size
           // because the smallest dstream is filled with empty batches
-          testForAll (dsUnion : Seq[Window[Int]]) {
+          testForAll (dsUnion.toSeq : Seq[Window[Int]]) {
             (batch : Window[Int]) =>  batch.length should be <= (effectiveBatchSize1 + effectiveBatchSize2)
           }
           // but the batches in the prefix where both dstreams have not empty batches should
           // have a size of exactly effectiveBatchSize1 + effectiveBatchSize2 
-          testForAll (dsUnion.slice(0, math.min(dstreamSize1, dstreamSize2)) : Seq[Window[Int]]) {
+          testForAll (dsUnion.toSeq.slice(0, math.min(dstreamSize1, dstreamSize2)) : Seq[Window[Int]]) {
             _ should have length (effectiveBatchSize1 + effectiveBatchSize2)
           }
           true // need to finish like that when using ScalaCheck matchers

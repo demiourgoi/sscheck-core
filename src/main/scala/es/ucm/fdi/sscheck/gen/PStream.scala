@@ -12,8 +12,8 @@ object PStream {
   implicit def batchSeq2dstream[A](windows : Seq[Window[A]]) : PStream[A] = PStream(windows:_*)
   implicit def batchMSeq2dstream[A](windows : MSeq[Window[A]]) : PStream[A] = new PStream(windows)
   implicit def seqSeq2dstream[A](windows : Seq[Seq[A]]) : PStream[A] = PStream(windows.map(Window[A](_:_*)):_*)
-  implicit def seqMSeq2dstream[A](windows : Seq[MSeq[A]]) : PStream[A] = new PStream(windows.map(Window(_)))
-  implicit def mseqMSeq2dstream[A](windows : MSeq[MSeq[A]]) : PStream[A] = PStream(windows)
+  implicit def seqMSeq2dstream[A](windows : Seq[MSeq[A]]) : PStream[A] = new PStream(windows.map{Window(_)})
+  implicit def mseqMSeq2dstream[A](windows : MSeq[MSeq[A]]) : PStream[A] = new PStream(windows.map{Window(_)})
 }
 
 /** An object of this class represents a finite prefix of a discrete data streams,

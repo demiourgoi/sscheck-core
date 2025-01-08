@@ -147,12 +147,12 @@ class FormulaTest
       println(s"phiNF3: $phiNF3")
       ( phiNF.result must beNone ) and
       ( phiNF1.result must beNone ) and 
-      ( phiNF2.result must beSome(Prop.False) ) and
+      ( phiNF2.result must beSome(beEqualTo(Prop.False))) and
       ( phiNF2 must haveClass[Solved[_]] ) and
       ( phiNF3 === phiNF2 )
     } and {
       val psiNF = psi.nextFormula
-      println
+      println()
       println(s"psi: $psi")
       println(s"psiNF: $psiNF")
       val psiNF1 = psiNF.consume(Time(4L))(bL)
@@ -167,7 +167,7 @@ class FormulaTest
       ( psiNF1.result must beNone ) and
       ( psiNF2.result must beNone ) and
       ( psiNF3.result must beNone ) and
-      ( psiNF4.result must beSome(Prop.True) ) and
+      ( psiNF4.result must beSome(beEqualTo(Prop.True)) ) and
       ( psiNF4 must haveClass[Solved[_]] ) and
       ( psiNF4.consume(Time(8L))(aL) === psiNF4 )
     }

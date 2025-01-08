@@ -3,13 +3,17 @@ package es.ucm.fdi.sscheck.gen
 import scala.language.implicitConversions
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.{Seq => MSeq}
+import scala.collection.immutable.{Seq => ISeq}
 
 object Window {
   def apply[A](points : A*): Window[A] = new Window(ListBuffer.from(points))
+  def apply[A](points: Iterable[A]): Window[A] = new Window(ListBuffer.from(points))
   def empty[A] : Window[A] = new Window(points = ListBuffer.empty)
 
   implicit def seq2batch[A](seq : Seq[A]) : Window[A] = new Window(ListBuffer.from(seq))
+  implicit def iseq2batch[A](seq : ISeq[A]) : Window[A] = seq2batch(seq)
   implicit def mseq2batch[A](seq : MSeq[A]) : Window[A] = new Window(seq)
+  implicit def batch2Iseq[A](window: Window[A]): ISeq[A] = window.points.toSeq
 }
 
 /** Objects of this class represent batches of elements

@@ -16,7 +16,7 @@ import scala.language.postfixOps
   */
 object ReGen {
   
-  val epsilon = Gen.const(ListBuffer())
+  def epsilon[A]: Gen[MSeq[A]] = Gen.const(ListBuffer())
   
   def symbol[A](s : A) : Gen[MSeq[A]] = Gen.const(ListBuffer(s))
   

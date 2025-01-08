@@ -4,10 +4,9 @@ import org.scalacheck.{Properties, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Prop.{forAll, exists, AnyOperators, collect}
 import org.scalatest._
-import org.scalatest.Matchers._
-import org.scalatest.prop.PropertyChecks._
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.Inspectors.{forAll => testForAll}
-import Window.seq2batch
+import Window._
 import BatchGenConversions._
 import PStreamGen._
 import Buildables.{buildableBatch, buildablePDStreamFromBatch}
