@@ -17,16 +17,17 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
       - name: Set up JDK 20
         uses: actions/setup-java@v4
         with:
           java-version: '20'
           distribution: 'temurin'
 
-      # https://github.com/lokkju/github-action-sbt
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Build with SBT
-        uses: lokkju/github-action-sbt@master
-        with:
-          commands: clean compile test
-          sbt_project_directory: ./
+        run: sbt clean compile test
