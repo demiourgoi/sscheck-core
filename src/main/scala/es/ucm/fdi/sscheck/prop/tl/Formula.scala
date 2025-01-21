@@ -30,7 +30,7 @@ object Formula {
   /** @return a formula where the result of applying letterToResult to the
     *         current letter must hold now
    */
-  implicit def resultFunToNow[T, R <% Result](letterToResult : T => R): BindNext[T] =
+  implicit def resultFunToNow[T, R](letterToResult : T => R)(implicit ev: R => Result): BindNext[T] =
     now(letterToResult andThen implicitly[Function[R, Result]])
 
   /** @return a formula where the result of applying letterToStatus to the
@@ -85,7 +85,7 @@ object Formula {
   /** @return a formula where the result of applying to the current letter
     *         the projection proj and then assertion must hold now
     */
-  def at[T, A, R <% Result](proj : (T) => A)(assertion : A => R): Formula[T] =
+  def at[T, A, R](proj : (T) => A)(assertion : A => R)(implicit ev: R => Result): Formula[T] =
     now(proj andThen assertion andThen implicitly[Function[R, Result]])
 
   /** @return a formula where the result of applying to the current tletter
@@ -397,10 +397,10 @@ object BindNext {
     new BindNext(new StaticTimedAtomsConsumer[T](Function.const(atomsToStatus andThen Solved.ofStatus _)))
   def fromStatusTimeFun[T](atomsTimeToStatus: (T, Time) => Prop.Status): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer(time => atoms => Solved.ofStatus(atomsTimeToStatus(atoms, time))))
-  def apply[T, R <% Result](atomsToResult: T => R): BindNext[T] =
+  def apply[T, R](atomsToResult: T => R)(implicit ev: R => Result): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer[T](
       Function.const(atomsToResult andThen implicitly[Function[R,Result]] andThen Solved.ofResult _)))
-  def apply[T, R <% Result](atomsTimeToResult: (T, Time) => R): BindNext[T] =
+  def apply[T, R](atomsTimeToResult: (T, Time) => R)(implicit ev: R => Result): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer(time => atoms => Solved.ofResult(atomsTimeToResult(atoms, time))))
 }
 
@@ -704,9 +704,9 @@ case class Release[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends
  *  implicit parameters in functions
  * */
 case class Timeout(val instants : Int) extends Serializable { 
-  def +[T <% Timeout](t : T) = Timeout { instants + t.instants }
-  def -[T <% Timeout](t : T) = Timeout { instants -  t.instants }
-  def max[T <% Timeout](t : T) = Timeout { math.max(instants, t.instants) }
+  def +[T](t : T)(implicit ev: T => Timeout) = Timeout { instants + t.instants }
+  def -[T](t : T)(implicit ev: T => Timeout) = Timeout { instants -  t.instants }
+  def max[T](t : T)(implicit ev: T => Timeout) = Timeout { math.max(instants, t.instants) }
 }
 
 /** This class is used in the builder methods in Formula and companion, 

@@ -8,15 +8,15 @@ object Buildables {
   /** Buildable for MSeq, so we can use Gen.containerOf and Arbitrary.arbitrary
   *  using MSeq as a container
   *  */
-  implicit def buildableSeq[T] = new Buildable[T, MSeq[T]] {
+  implicit def buildableSeq[T]: Buildable[T, MSeq[T]] = new Buildable[T, MSeq[T]] {
     def builder = new collection.mutable.Builder[T,MSeq[T]] {
     var xs : List[T] = List() 
       def addOne(x: T) = {
        xs = x :: xs
        this
       }
-      def clear = xs = List()
-      def result = xs reverse // note it is important to respect the generation order
+      def clear() = xs = List()
+      def result() = xs reverse // note it is important to respect the generation order
     }
   }
     
@@ -32,8 +32,8 @@ object Buildables {
           nestedBuilder += elemMapping(x)
           this
         }
-        def clear = nestedBuilder.clear
-        def result = nestedBuilder.mapResult(resultMapping).result
+        def clear() = nestedBuilder.clear()
+        def result() = nestedBuilder.mapResult(resultMapping).result()
       }
   }
   /** Builds a Buildable as a transformation of a given buildable, by tranforming 
@@ -48,8 +48,8 @@ object Buildables {
           nestedBuilder += x
           this
         }
-        def clear = nestedBuilder.clear
-        def result = nestedBuilder.mapResult(resultMapping).result
+        def clear() = nestedBuilder.clear()
+        def result() = nestedBuilder.mapResult(resultMapping).result()
       }
   }
     

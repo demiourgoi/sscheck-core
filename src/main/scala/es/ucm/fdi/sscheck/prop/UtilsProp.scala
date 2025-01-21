@@ -10,7 +10,7 @@ import scala.util.{Try, Success, Failure}
 import org.scalacheck.util.Pretty
 
 object UtilsProp {
-  def safeProp[P <% Prop](p : => P) : Prop = {
+  def safeProp[P](p : => P)(implicit ev: P => Prop) : Prop = {
     Try(p) match {
       case Success(pVal) => pVal
       case Failure(t) => t match {
