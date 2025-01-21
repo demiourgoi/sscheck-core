@@ -32,4 +32,4 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Build with SBT
-        run: sbt clean compile test
+        run: sbt clean compile scalafixEnable "scalafixAll --check" test

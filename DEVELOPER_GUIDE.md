@@ -14,6 +14,11 @@ reload
 clean
 compile
 test
+
+# run linter: see CI target on .github\workflows\sscheck_core.yml
+scalafixEnable
+scalafixAll --check
+
 publishLocal
 
 # ver tb https://github.com/demiourgoi/flink-check/blob/master/ci/run_all_tests.sh
