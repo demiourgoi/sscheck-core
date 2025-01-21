@@ -1,22 +1,22 @@
 package es.ucm.fdi.sscheck.prop.tl
 
-import org.scalacheck.{Gen,Prop}
+import org.scalacheck.{Gen, Prop}
 import org.scalacheck.Arbitrary.arbitrary
-
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 import org.specs2.ScalaCheck
 import org.specs2.Specification
 import org.specs2.execute.Result
-
 import Formula._
+import org.specs2.matcher.MatchResult
+import org.specs2.specification.core.SpecStructure
 
 /* TODO tests for formulas with quantifiers */
 @RunWith(classOf[JUnitRunner])
 class FormulaTest
   extends Specification {
   
-  def is = sequential ^ s2"""
+  def is: SpecStructure = sequential ^ s2"""
     Basic test for temporal logic formulas representation
       - where some example formulas are correctly built $exampleFormulas
       - where nextFormula is defined correctly $nextFormulaOk
@@ -26,15 +26,15 @@ class FormulaTest
       - where safeWordLength is ok $pending
     """    
       
-  // Consider an universe with an Int i and a String s
+  // Consider a universe with an Int i and a String s
   type U = (Int, String)
   type Form = Formula[U]
   val (i, s) = ((_ : U)._1, (_ : U)._2)
   // some atomic propositions
-  val aP : Form = at(i)(_  must be_>(2))
+  val aP : Form = at(i)(_ must be_>(2))
   val aQ : Form = at(s)(_ contains "hola")
       
-  def exampleFormulas = {         
+  def exampleFormulas: MatchResult[Form] = {
     val notP = ! aP
     val pImpliesQ = aP ==> aQ
     val nextP = next (aP)
@@ -57,7 +57,7 @@ class FormulaTest
   
   // TODO: adapt to new lazy next form 
   // TODO: adapt to NextAnd and NextOr extending NextBinaryOp
-  def nextFormulaOk = {
+  def nextFormulaOk: Result = {
     // now
     { aP. nextFormula === aP } and
     { aP. nextFormula must not be_==(aQ. nextFormula) } and
@@ -114,14 +114,14 @@ class FormulaTest
   }
   
   // TODO: adapt to new lazy next form
-  def nextFormulaPaper = {
+  def nextFormulaPaper: MatchResult[Formula[(Int, String)]] = {
     val phi = always (aQ ==> (later(aP) on 2)) during 2
     phi.nextFormula ===  
      ( (!aQ or (aP or next(aP))) and 
        next(!aQ or (aP or next(aP))) )
   }
   
-  def consumeOk = {
+  def consumeOk: MatchResult[Serializable] = {
     type U = (Int, Int)
     type Form = Formula[U]
     // some atomic propositions
@@ -173,9 +173,9 @@ class FormulaTest
     }
   }
   
-  def nextTimes = {
-    (next(1)(aP) === next(aP)) and 
-    (next(0)(aP) === aP) and 
-    (next(2)(aP) === next(next(aP)))
+  def nextTimes: MatchResult[Formula[(Int, String)]] = {
+    (next(1, aP) === next(aP)) and
+    (next(0, aP) === aP) and
+    (next(2, aP) === next(next(aP)))
   }
 }

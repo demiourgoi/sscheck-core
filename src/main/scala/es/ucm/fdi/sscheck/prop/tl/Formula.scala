@@ -37,7 +37,7 @@ object Formula {
     *         current letter must hold now
     */
   implicit def statusFunToNow[T](letterToStatus: T => Prop.Status): BindNext[T] =
-    nowS(letterToStatus)
+    now(letterToStatus)
 
   /** More succinct notation for BindNext formulas
    */
@@ -65,139 +65,217 @@ object Formula {
     case _ => Prop.Undecided
   }
 
-  /* For overloads the criteria is:
-   * - avoid overload for Function, because Scala forbids them
-   * - I haven't been able to make the techniques in http://stackoverflow.com/questions/3307427/scala-double-definition-2-methods-have-the-same-type-erasure
-   * and http://stackoverflow.com/questions/17841993/double-definition-error-despite-different-parameter-types to work. Neither Scalaz type
-   * unions. The main goal was defining an overload like Formula.always for and argument of type (T) => Result vs argument Formula[T] when using with
-   * formulas defined with the case syntax https://groups.google.com/forum/#!topic/scala-user/rkau5IcuH48
-   * - Shapeless could be an option to explore in the future, although it introduces a complex
-   * dependency, specially for Scala 2.10 that doesn't have macros by default. Could explore this in the future
-   * - When a overload is required we'll use the following strategy to avoid it:
-   *   * For overloads for functions to Result, Prop.Status, and Formula, replace overloads for pattern f
-   *   for T => Result, fS for T => Prop.Status, and fF for T => Formula[T], see example for at()
-   *   * For overloads for the 3 functions in the previous item, plus for Formula[T], use f for the Formula[T]
-   *   and T => Formula[T], and then for fR for T => R <% Result, and fS for T => Prop.Status, and fF for T => Formula[T].
-   *   The result version has two version for T => Formula[T] because the overload doesn't works ok for functions defined
-   *   with the case syntax (see https://groups.google.com/forum/#!topic/scala-user/rkau5IcuH48). See example for always()
-   * */
+/** @return a formula where the result of applying to the current letter
+  *         the projection proj and then assertion must hold now
+  */
+def at[T, A, R](proj : (T) => A)(assertion : A => R)(implicit ev: R => Result): Formula[T] =
+  now(proj andThen assertion andThen implicitly[Function[R, Result]])
 
-  /** @return a formula where the result of applying to the current letter
-    *         the projection proj and then assertion must hold now
-    */
-  def at[T, A, R](proj : (T) => A)(assertion : A => R)(implicit ev: R => Result): Formula[T] =
-    now(proj andThen assertion andThen implicitly[Function[R, Result]])
+/** @return a formula where the result of applying to the current tletter
+  *         the projection proj and then assertion must hold now
+ */
+def atS[T, A](proj : (T) => A)(assertion: A => Prop.Status): Formula[T] =
+  now(assertion compose proj)
 
-  /** @return a formula where the result of applying to the current tletter
-    *         the projection proj and then assertion must hold now
-    */
-  def atS[T, A](proj : (T) => A)(assertion: A => Prop.Status): Formula[T] =
-    nowS(assertion compose proj)
-
-  /** @return a formula where the result of applying to the current tletter
-    *         the projection proj and then assertion must hold in the next
-    *         instant
-    */
-  def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
-    next(atomsConsumer compose proj)
+/** @return a formula where the result of applying to the current tletter
+  *         the projection proj and then assertion must hold in the next
+  *         instant
+  */
+def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
+  next(atomsConsumer compose proj)
 
   // Factories for non temporal connectives: note these act as clever constructors
   // for Or and And
   def or[T](phis: Formula[T]*): Formula[T] =
-    if (phis.length == 0) Solved(Prop.False)
+    if (phis.isEmpty) Solved(Prop.False)
     else if (phis.length == 1) phis(0)
     else Or(phis:_*)
   def and[T](phis: Formula[T]*): Formula[T] =
-    if (phis.length == 0) Solved(Prop.True)
+    if (phis.isEmpty) Solved(Prop.True)
     else if (phis.length == 1) phis(0)
     else And(phis:_*)
 
   // Factories for temporal connectives
-  def next[T](phi: Formula[T]): Formula[T] = Next(phi)
-  /** @return an application of BindNext to letterToFormula: the result of applying
-   *         letterToFormula to the current letter must hold in the next instant
-   * */
-  def next[T](letterToFormula: T => Formula[T]): Formula[T] = BindNext.fromAtomsConsumer(letterToFormula)
-  /** @return an application of BindNext to letterToFormula: the result of applying
-    *         letterToFormula to the current letter must hold in the next instant
-    * */
-  def nextF[T](letterToFormula: T => Formula[T]): Formula[T] = next(letterToFormula)
-  /** @return an application of BindNext to letterToFormula: the result of applying
-    *         letterToFormula to the current letter must hold in the next instant
-    * */
-  def nextTime[T](letterToFormula: (T, Time) => Formula[T]): Formula[T] =
-    BindNext.fromAtomsTimeConsumer(letterToFormula)
+  // Using https://spray.readthedocs.io/en/latest/blog/2012-12-13-the-magnet-pattern.html
+  // to handle JVM type erasure on overrides
 
-  /** @return the result of applying next to phi the number of
-   *  times specified
-   * */
-  def next[T](times: Int)(phi: Formula[T]): Formula[T] = {
-    require(times >= 0, s"times should be >=0, found $times")
-    (1 to times).foldLeft(phi) { (f, _) => new Next[T](f) }
+  def next(magnet: NextMagnet): magnet.Result = magnet()
+  sealed trait NextMagnet {
+    type Result
+    def apply(): Result
+  }
+  object NextMagnet {
+    implicit def fromFormula[T](phi: Formula[T]): NextMagnet {type Result = Formula[T]} =
+      new NextMagnet {
+        override type Result = Formula[T]
+        override def apply(): Result = Next(phi)
+      }
+
+    /** @return an application of BindNext to letterToFormula: the result of applying
+     *         letterToFormula to the current letter must hold in the next instant
+     * */
+    implicit def fromLetterToFormula[T](letterToFormula: T => Formula[T]): NextMagnet {type Result = Formula[T]} =
+      new NextMagnet {
+        override type Result = Formula[T]
+        override def apply(): Result = BindNext.fromAtomsConsumer(letterToFormula)
+      }
+
+    /** @return an application of BindNext to letterToFormula: the result of applying
+     *         letterToFormula to the current letter must hold in the next instant
+     * */
+    implicit def fromLetterTimeToFormula[T](letterToFormula: (T, Time) => Formula[T]): NextMagnet {type Result = Formula[T]} =
+      new NextMagnet {
+        override type Result = Formula[T]
+        override def apply(): Result = BindNext.fromAtomsTimeConsumer(letterToFormula)
+      }
+
+    /** @return the result of applying next to phi the number of
+     *  times specified
+     * */
+    implicit def fromNextTimesToFormula[T](args: (Int, Formula[T])): NextMagnet {type Result = Formula[T]} =
+      new NextMagnet {
+        override type Result = Formula[T]
+        override def apply(): Result = {
+          val (times, phi) = args
+          require(times >= 0, s"times should be >=0, found $times")
+          (1 to times).foldLeft(phi) { (f, _) => new Next[T](f) }
+        }
+      }
   }
 
-  /* NOTE the Scaladoc description for the variants of now() are true without a
-next because Result corresponds to a timeless formula, and because NextFormula.consume()
-leaves the formula in a solved state without a need to consume any additional letter
-after the first one
- */
-  /** @return a formula where the result of applying letterToResult to the
-    *         current letter must hold now
-    */
-  def now[T](letterToResult: T => Result): BindNext[T] = BindNext(letterToResult)
-  /** @return a formula where the result of applying letterToResult to the
-    *         current letter must hold now
-    */
-  def nowTime[T](letterToResult: (T, Time) => Result): BindNext[T] = BindNext(letterToResult)
+  /**
+   *  NOTE the Scaladoc description for the variants of now() in the companion NowMagnet are true
+   *  without a next because Result corresponds to a timeless formula, and because
+   *  NextFormula.consume() leaves the formula in a solved state without a need to consume
+   *  any additional letter after the first one
+   *  */
+  def now(magnet: NowMagnet): magnet.Result = magnet()
+  sealed trait NowMagnet {
+    type Result
+    def apply(): Result
+  }
+  object NowMagnet {
+    /** @return a formula where the result of applying letterToResult to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToResult[T](letterToResult: T => Result): NowMagnet {type Result = BindNext[T]} =
+      new NowMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext(letterToResult)
+      }
 
-  /** @return a formula where the result of applying letterToStatus to the
-    *         current letter must hold now
-    */
-  def nowS[T](letterToStatus: T => Prop.Status): BindNext[T] = BindNext.fromStatusFun(letterToStatus)
-  /** @return a formula where the result of applying letterToStatus to the
-    *         current letter must hold now
-    */
-  def nowTimeS[T](letterToStatus: (T, Time) => Prop.Status): BindNext[T] = BindNext.fromStatusTimeFun(letterToStatus)
+    /** @return a formula where the result of applying letterToResult to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterTimeToResult[T](letterToResult: (T, Time) => Result): NowMagnet {type Result = BindNext[T]} =
+      new NowMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext(letterToResult)
+      }
 
-  /** @return an application of BindNext to letterToFormula: the result of applying
-    *         letterToFormula to the current letter must hold in the next instant
-    * */
-  def consume[T](letterToFormula: T => Formula[T]): Formula[T] = BindNext.fromAtomsConsumer(letterToFormula)
+    /** @return a formula where the result of applying letterToStatus to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToStatus[T](letterToStatus: T => Prop.Status): NowMagnet {type Result = BindNext[T]} =
+      new NowMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromStatusFun(letterToStatus)
+      }
 
-  /** @return a formula where the result of applying letterToStatus to the
-    *         current letter must hold in the next instant
-    */
-  def consumeS[T](letterToStatus: T => Prop.Status): BindNext[T] = BindNext.fromStatusFun(letterToStatus)
+    /** @return a formula where the result of applying letterToStatus to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterTimeToStatus[T](letterToStatus: (T, Time) => Prop.Status): NowMagnet {type Result = BindNext[T]} =
+      new NowMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromStatusTimeFun(letterToStatus)
+      }
+  }
 
-  /** @return a formula where the result of applying letterToResult to the
-    *         current letter must hold in the next instant
-    */
-  def consumeR[T](letterToResult: T => Result): BindNext[T] = BindNext(letterToResult)
+  def consume(magnet: ConsumeMagnet): magnet.Result = magnet()
+  sealed trait ConsumeMagnet {
+    type Result
+    def apply(): Result
+  }
+  object ConsumeMagnet {
+    /** @return an application of BindNext to letterToFormula: the result of applying
+     *         letterToFormula to the current letter must hold in the next instant
+     * */
+    implicit def fromAtomsConsumer[T](letterToFormula: T => Formula[T]): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromAtomsConsumer(letterToFormula)
+      }
 
-  /** @return an application of BindNext to letterToFormula: the result of applying
-    *         letterToFormula to the current letter must hold in the next instant
-    * */
-  def consumeTime[T](letterToFormula: (T, Time) => Formula[T]): Formula[T] =
-    BindNext.fromAtomsTimeConsumer(letterToFormula)
+    /** @return a formula where the result of applying letterToStatus to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromStatusFun[T](letterToStatus: T => Prop.Status): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromStatusFun(letterToStatus)
+      }
 
-  /** @return a formula where the result of applying letterToStatus to the
-    *         current letter must hold in the next instant
-    */
-  def consumeTimeS[T](letterToStatus: (T, Time) => Prop.Status): BindNext[T] =
-    BindNext.fromStatusTimeFun(letterToStatus)
+    /** @return a formula where the result of applying letterToResult to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromResultFun[T](letterToResult: T => Result): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext(letterToResult)
+      }
 
-  /** @return a formula where the result of applying letterToResult to the
-    *         current letter must hold in the next instant
-    */
-  def consumeTimeR[T](letterToResult: (T, Time) => Result): BindNext[T] = BindNext(letterToResult)
+    /** @return an application of BindNext to letterToFormula: the result of applying
+     *         letterToFormula to the current letter must hold in the next instant
+     * */
+    implicit def fromLetterTimeToFormula[T](letterToFormula: (T, Time) => Formula[T]): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromAtomsTimeConsumer(letterToFormula)
+      }
 
-  def eventually[T](phi: Formula[T]): TimeoutMissingFormula[T] =
-    new TimeoutMissingFormula[T](Eventually(phi, _))
-  /** @return a formula where eventually the result of applying letterToFormula to the
-    *         current letter must hold in the next instant
-    */
-  def eventually[T](letterToFormula: T => Formula[T]): TimeoutMissingFormula[T] =
-    eventuallyF(letterToFormula)
+    /** @return a formula where the result of applying letterToStatus to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromLetterToStatus[T](letterToStatus: (T, Time) => Prop.Status): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext.fromStatusTimeFun(letterToStatus)
+      }
+
+    /** @return a formula where the result of applying letterToResult to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromLetterToResult[T](letterToResult: (T, Time) => Result): ConsumeMagnet {type Result = BindNext[T]} =
+      new ConsumeMagnet {
+        override type Result = BindNext[T]
+        override def apply(): Result = BindNext(letterToResult)
+      }
+  }
+
+  def eventually(magnet: EventuallyMagnet): magnet.Result = magnet()
+  sealed trait EventuallyMagnet {
+    type Result
+    def apply(): Result
+  }
+  object EventuallyMagnet {
+    implicit def fromFormula[T](phi: Formula[T]): EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
+      new EventuallyMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = new TimeoutMissingFormula[T](Eventually(phi, _))
+      }
+
+    /** @return a formula where eventually the result of applying letterToFormula to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromLetterToFormula[T](letterToFormula: T => Formula[T]): EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
+      new EventuallyMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = eventually(next(letterToFormula))
+      }
+  }
+
+  // AQUI
   /** @return a formula where eventually the result of applying letterToResult to the
     *         current letter must hold now
     */
@@ -208,7 +286,7 @@ after the first one
     *         current letter must hold now
     */
   def eventuallyS[T](letterToStatus: T => Prop.Status): TimeoutMissingFormula[T] =
-    eventually(nowS(letterToStatus))
+    eventually(now(letterToStatus))
   /** @return a formula where eventually the result of applying letterToFormula to the
     *         current letter must hold in the next instant
     */
@@ -251,7 +329,7 @@ after the first one
     *         current letter must hold now
     */
   def alwaysS[T](letterToStatus: T => Prop.Status): TimeoutMissingFormula[T] =
-    always(nowS(letterToStatus))
+    always(now(letterToStatus))
   /** @return a formula where always the result of applying letterToFormula to the
     *         current letter must hold in the next instant
     */
@@ -288,7 +366,7 @@ sealed trait Formula[T]
     *          of applying letterToStatus to the current letter holds
     */
   def untilS(letterToStatus : T => Prop.Status): TimeoutMissingFormula[T] =
-    this.until(nowS(letterToStatus))
+    this.until(now(letterToStatus))
   /** @return a formula where this formula happens until the result
     *          of applying letterToFormula to the current letter holds
     *          in the next instant
@@ -312,7 +390,7 @@ sealed trait Formula[T]
     *          holding now
     */
   def releaseS(letterToStatus : T => Prop.Status): TimeoutMissingFormula[T] =
-    this.release(nowS(letterToStatus))
+    this.release(now(letterToStatus))
   /** @return a formula where this formula releases the result
     *          of applying letterToFormula to the current letter from
     *          holding in the next instant
@@ -716,11 +794,11 @@ case class Timeout(val instants : Int) extends Serializable {
 class TimeoutMissingFormula[T](val toFormula : Timeout => Formula[T]) 
   extends Serializable {
   
-  def on(t : Timeout) = toFormula(t)
+  def on(t : Timeout): Formula[T] = toFormula(t)
   /** Alias of on that can be used for obtaining a more readable spec, for
    *  example combined with Formula.always()
    */
-  def during(t : Timeout) = on(t)
+  def during(t : Timeout): Formula[T] = on(t)
 }
 
 /** @param millis: number of milliseconds since January 1, 1970 UTC
