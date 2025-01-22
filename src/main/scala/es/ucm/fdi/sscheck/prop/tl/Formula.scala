@@ -396,29 +396,48 @@ sealed trait Formula[T]
       }
   }
 
-  def release(phi2 : Formula[T]): TimeoutMissingFormula[T] = new TimeoutMissingFormula[T](Release(this, phi2, _))
-  /** @return a formula where this formula releases the result
-    *          of applying letterToFormula to the current letter from
-    *          holding in the next instant
-    */
-  def release(letterToFormula : T => Formula[T]): TimeoutMissingFormula[T] = this.releaseF(letterToFormula)
-  /** @return a formula where this formula releases the result
-    *          of applying letterToResult to the current letter from
-    *          holding now
-    */
-  def releaseR(letterToResult : T => Result): TimeoutMissingFormula[T] = this.release(now(letterToResult))
-  /** @return a formula where this formula releases the result
-    *          of applying letterToStatus to the current letter from
-    *          holding now
-    */
-  def releaseS(letterToStatus : T => Prop.Status): TimeoutMissingFormula[T] =
-    this.release(now(letterToStatus))
-  /** @return a formula where this formula releases the result
-    *          of applying letterToFormula to the current letter from
-    *          holding in the next instant
-    */
-  def releaseF(letterToFormula : T => Formula[T]): TimeoutMissingFormula[T] =
-    this.release(next(letterToFormula))
+  def release(magnet: ReleaseMagnet): magnet.Result = magnet(this)
+  sealed trait ReleaseMagnet {
+    type Result
+    def apply(phi1: Formula[T]): Result
+  }
+  object ReleaseMagnet {
+    implicit def fromFormula(phi2: Formula[T]): ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
+      new ReleaseMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = new TimeoutMissingFormula[T](Release(phi1, phi2, _))
+      }
+
+    /** @return a formula where this formula releases the result
+     *          of applying letterToFormula to the current letter from
+     *          holding in the next instant
+     */
+    implicit def fromLetterToFormula(letterToFormula : T => Formula[T]): ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
+      new ReleaseMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.release(next(letterToFormula))
+      }
+
+    /** @return a formula where this formula releases the result
+     *          of applying letterToResult to the current letter from
+     *          holding now
+     */
+    implicit def fromLetterToResult(letterToResult : T => Result): ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
+      new ReleaseMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.release(now(letterToResult))
+      }
+
+    /** @return a formula where this formula releases the result
+     *          of applying letterToStatus to the current letter from
+     *          holding now
+     */
+    implicit def fromLetterToStatus(letterToStatus : T => Prop.Status): ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
+      new ReleaseMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.release(now(letterToStatus))
+      }
+  }
 }
 
 /** Restricted class of formulas that are in a form suitable for the
@@ -494,12 +513,12 @@ object BindNext {
   def fromAtomsTimeConsumer[T](atomsTimeConsumer: (T, Time) => Formula[T]): BindNext[T] =
     new BindNext(new DynamicTimedAtomsConsumer(time => atoms => atomsTimeConsumer(atoms, time)))
   def fromStatusFun[T](atomsToStatus: T => Prop.Status): BindNext[T] =
-    new BindNext(new StaticTimedAtomsConsumer[T](Function.const(atomsToStatus andThen Solved.ofStatus _)))
+    new BindNext(new StaticTimedAtomsConsumer[T](Function.const(atomsToStatus andThen Solved.ofStatus)))
   def fromStatusTimeFun[T](atomsTimeToStatus: (T, Time) => Prop.Status): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer(time => atoms => Solved.ofStatus(atomsTimeToStatus(atoms, time))))
   def apply[T, R](atomsToResult: T => R)(implicit ev: R => Result): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer[T](
-      Function.const(atomsToResult andThen implicitly[Function[R,Result]] andThen Solved.ofResult _)))
+      Function.const(atomsToResult andThen implicitly[Function[R,Result]] andThen Solved.ofResult)))
   def apply[T, R](atomsTimeToResult: (T, Time) => R)(implicit ev: R => Result): BindNext[T] =
     new BindNext(new StaticTimedAtomsConsumer(time => atoms => Solved.ofResult(atomsTimeToResult(atoms, time))))
 }
@@ -658,7 +677,7 @@ object SequentialFormulaParallelism extends FormulaParallelism
  *  boolean operators that apply to a collection of formulas with a reduce()
  *  */
 abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
-  extends Function2[Prop.Status, Prop.Status, Prop.Status] 
+  extends ((Prop.Status, Prop.Status) => Prop.Status)
   with NextFormula[T] {
   
   // TODO: consider replacing by getting the companion of the concrete subclass 
@@ -684,7 +703,9 @@ abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
     val definedStatus = phisDefined.nonEmpty option {
       phisDefined
       .map { _.result.get }
-      .reduce { apply(_, _) }
+      .reduce {
+        apply
+      }
       }  
     // short-circuit operator if possible. Note an edge case when all the phis
     // are defined after consuming the input, but we might still not have a
@@ -805,10 +826,10 @@ case class Release[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends
  *  A type different to Int allows us to be more specified when requiring
  *  implicit parameters in functions
  * */
-case class Timeout(val instants : Int) extends Serializable { 
-  def +[T](t : T)(implicit ev: T => Timeout) = Timeout { instants + t.instants }
-  def -[T](t : T)(implicit ev: T => Timeout) = Timeout { instants -  t.instants }
-  def max[T](t : T)(implicit ev: T => Timeout) = Timeout { math.max(instants, t.instants) }
+case class Timeout(val instants : Int) extends Serializable {
+  def +[T](t : T)(implicit ev: T => Timeout): Timeout = Timeout { instants + t.instants }
+  def -[T](t : T)(implicit ev: T => Timeout): Timeout = Timeout { instants -  t.instants }
+  def max[T](t : T)(implicit ev: T => Timeout): Timeout = Timeout { math.max(instants, t.instants) }
 }
 
 /** This class is used in the builder methods in Formula and companion, 
