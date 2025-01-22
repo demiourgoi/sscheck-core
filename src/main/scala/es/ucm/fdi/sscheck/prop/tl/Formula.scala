@@ -84,8 +84,8 @@ def atS[T, A](proj : (T) => A)(assertion: A => Prop.Status): Formula[T] =
 def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
   next(atomsConsumer compose proj)
 
-  // Factories for non temporal connectives: note these act as clever constructors
-  // for Or and And
+  // Factories for non-temporal connectives: note these act as clever constructors
+  // for `Or` and `And`
   def or[T](phis: Formula[T]*): Formula[T] =
     if (phis.isEmpty) Solved(Prop.False)
     else if (phis.length == 1) phis(0)
@@ -273,69 +273,72 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
         override type Result = TimeoutMissingFormula[T]
         override def apply(): Result = eventually(next(letterToFormula))
       }
+
+    /** @return a formula where eventually the result of applying letterToResult to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToResult[T](letterToResult: T => Result): EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
+      new EventuallyMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = eventually(now(letterToResult))
+      }
+
+    /** @return a formula where eventually the result of applying letterToStatus to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToStatus[T](letterToStatus: T => Prop.Status): EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
+      new EventuallyMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = eventually(now(letterToStatus))
+      }
   }
-
-  // AQUI
-  /** @return a formula where eventually the result of applying letterToResult to the
-    *         current letter must hold now
-    */
-  def eventuallyR[T](letterToResult: T => Result): TimeoutMissingFormula[T] =
-    eventually(now(letterToResult))
-
-  /** @return a formula where eventually the result of applying letterToStatus to the
-    *         current letter must hold now
-    */
-  def eventuallyS[T](letterToStatus: T => Prop.Status): TimeoutMissingFormula[T] =
-    eventually(now(letterToStatus))
-  /** @return a formula where eventually the result of applying letterToFormula to the
-    *         current letter must hold in the next instant
-    */
-  def eventuallyF[T](letterToFormula: T => Formula[T]): TimeoutMissingFormula[T] =
-    eventually(next(letterToFormula))
 
   /** Alias of eventually that can be used when there is a name class, for example
    *  with EventuallyMatchers.eventually
    * */
-  def later[T](phi: Formula[T]) = eventually(phi)
-  /** Alias of eventually that can be used when there is a name class, for example
-    *  with EventuallyMatchers.eventually
-    * */
-  def later[T](assertion: T => Formula[T]) = eventually(assertion)
-  /** Alias of eventually that can be used when there is a name class, for example
-    *  with EventuallyMatchers.eventually
-    * */
-  def laterR[T](assertion: T => Result) = eventuallyR(assertion)
-  /** Alias of eventually that can be used when there is a name class, for example
-    *  with EventuallyMatchers.eventually
-    * */
-  def laterS[T](assertion: T => Prop.Status) = eventuallyS(assertion)
-  /** Alias of eventually that can be used when there is a name class, for example
-    *  with EventuallyMatchers.eventually
-    * */
-  def laterF[T](assertion: T => Formula[T]) = eventuallyF(assertion)
+  def later(magnet: EventuallyMagnet): magnet.Result = eventually(magnet)
 
-  def always[T](phi: Formula[T]) = new TimeoutMissingFormula[T](Always(phi, _))
-  /** @return a formula where always the result of applying letterToFormula to the
-    *         current letter must hold in the next instant
-    */
-  def always[T](letterToFormula: T => Formula[T]): TimeoutMissingFormula[T] =
-    alwaysF[T](letterToFormula)
-  /** @return a formula where always the result of applying letterToResult to the
-    *         current letter must hold now
-    */
-  def alwaysR[T](letterToResult: T => Result): TimeoutMissingFormula[T] =
-    always(now(letterToResult))
-  /** @return a formula where always the result of applying letterToStatus to the
-    *         current letter must hold now
-    */
-  def alwaysS[T](letterToStatus: T => Prop.Status): TimeoutMissingFormula[T] =
-    always(now(letterToStatus))
-  /** @return a formula where always the result of applying letterToFormula to the
-    *         current letter must hold in the next instant
-    */
-  def alwaysF[T](letterToFormula: T => Formula[T]): TimeoutMissingFormula[T] =
-    always(next(letterToFormula))
+  def always(magnet: AlwaysMagnet): magnet.Result = magnet()
+  sealed trait AlwaysMagnet {
+    type Result
+    def apply(): Result
+  }
+  object AlwaysMagnet {
+    implicit def fromFormula[T](phi: Formula[T]): AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
+      new AlwaysMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = new TimeoutMissingFormula[T](Always(phi, _))
+      }
+
+    /** @return a formula where always the result of applying letterToFormula to the
+     *         current letter must hold in the next instant
+     */
+    implicit def fromLetterToFormula[T](letterToFormula: T => Formula[T]): AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
+      new AlwaysMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = always(next(letterToFormula))
+      }
+
+    /** @return a formula where always the result of applying letterToResult to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToResult[T](letterToResult: T => Result): AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
+      new AlwaysMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = always(now(letterToResult))
+      }
+
+    /** @return a formula where always the result of applying letterToStatus to the
+     *         current letter must hold now
+     */
+    implicit def fromLetterToStatus[T](letterToStatus: T => Prop.Status): AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
+      new AlwaysMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(): Result = always(now(letterToStatus))
+      }
+  }
 }
+
 
 // using trait for the root of the AGT as recommended in http://twitter.github.io/effectivescala/
 sealed trait Formula[T]
@@ -346,33 +349,52 @@ sealed trait Formula[T]
   def nextFormula(implicit par: FormulaParallelism): NextFormula[T]
 
   // non temporal builder methods
-  def unary_! = Not(this)
-  def or(phi2 : Formula[T]) = Or(this, phi2)
-  def and(phi2 : Formula[T]) = And(this, phi2)
-  def ==>(phi2 : Formula[T]) = Implies(this, phi2)
+  def unary_! : Formula[T] = Not(this)
+  def or(phi2 : Formula[T]): Or[T] = Or(this, phi2)
+  def and(phi2 : Formula[T]): And[T] = And(this, phi2)
+  def ==>(phi2 : Formula[T]): Implies[T] = Implies(this, phi2)
 
   // temporal builder methods: next, eventually and always are methods of the Formula companion object
-  def until(phi2 : Formula[T]): TimeoutMissingFormula[T] = new TimeoutMissingFormula[T](Until(this, phi2, _))
-  /** @return a formula where this formula happens until the result
-    *          of applying letterToFormula to the current letter holds
-    *          in the next instant
-    */
-  def until(letterToFormula : T => Formula[T]): TimeoutMissingFormula[T] = this.untilF(letterToFormula)
-  /** @return a formula where this formula happens until the result
-    *          of applying letterToResult to the current letter holds
-    */
-  def untilR(letterToResult : T => Result): TimeoutMissingFormula[T] = this.until(now(letterToResult))
-  /** @return a formula where this formula happens until the result
-    *          of applying letterToStatus to the current letter holds
-    */
-  def untilS(letterToStatus : T => Prop.Status): TimeoutMissingFormula[T] =
-    this.until(now(letterToStatus))
-  /** @return a formula where this formula happens until the result
-    *          of applying letterToFormula to the current letter holds
-    *          in the next instant
-    */
-  def untilF(letterToFormula : T => Formula[T]): TimeoutMissingFormula[T] =
-    this.until(next(letterToFormula))
+  def until(magnet: UntilMagnet): magnet.Result = magnet(this)
+  sealed trait UntilMagnet {
+    type Result
+    def apply(phi1: Formula[T]): Result
+  }
+  object UntilMagnet {
+    implicit def fromFormula(phi2: Formula[T]): UntilMagnet {type Result = TimeoutMissingFormula[T]} =
+      new UntilMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = new TimeoutMissingFormula[T](Until(phi1, phi2, _))
+      }
+
+    /** @return a formula where this formula happens until the result
+     *          of applying letterToFormula to the current letter holds
+     *          in the next instant
+     */
+    implicit def fromLetterToFormula(letterToFormula : T => Formula[T]): UntilMagnet {type Result = TimeoutMissingFormula[T]} =
+      new UntilMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.until(next(letterToFormula))
+      }
+
+    /** @return a formula where this formula happens until the result
+     *          of applying letterToResult to the current letter holds
+     */
+    implicit def fromLetterToResult(letterToResult : T => Result): UntilMagnet {type Result = TimeoutMissingFormula[T]} =
+      new UntilMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.until(now(letterToResult))
+      }
+
+    /** @return a formula where this formula happens until the result
+     *          of applying letterToStatus to the current letter holds
+     */
+    implicit def fromLetterToStatus(letterToStatus : T => Prop.Status): UntilMagnet {type Result = TimeoutMissingFormula[T]} =
+      new UntilMagnet {
+        override type Result = TimeoutMissingFormula[T]
+        override def apply(phi1: Formula[T]): Result = phi1.until(now(letterToStatus))
+      }
+  }
 
   def release(phi2 : Formula[T]): TimeoutMissingFormula[T] = new TimeoutMissingFormula[T](Release(this, phi2, _))
   /** @return a formula where this formula releases the result
@@ -404,7 +426,7 @@ sealed trait Formula[T]
  */
 sealed trait NextFormula[T]
   extends Formula[T] {
-  override def nextFormula(implicit par: FormulaParallelism) = this
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = this
 
   /** @return Option.Some if this formula is resolved, and Option.None
    *  if it is still pending resolution when some additional values
@@ -425,19 +447,19 @@ sealed trait NextFormula[T]
 /** Resolved formulas
  * */
 object Solved {
-  def apply[T](result: Result) = ofResult[T](result)
+  def apply[T](result: Result): Solved[T] = ofResult[T](result)
   // these are needed to resolve ambiguities with apply
   def ofResult[T](result: Result): Solved[T] = new Solved[T](Formula.resultToPropStatus(result))
   def ofStatus[T](status : Prop.Status): Solved[T] = Solved(status)
 }
 // see https://github.com/rickynils/scalacheck/blob/1.12.2/src/main/scala/org/scalacheck/Prop.scala
 case class Solved[T](status : Prop.Status) extends NextFormula[T] {
-  override def safeWordLength = Some(Timeout(0))
-  override def result = Some(status)
+  override def safeWordLength: Option[Timeout] = Some(Timeout(0))
+  override def result: Option[Prop.Status] = Some(status)
   // do no raise an exception in call to consume, because with NextOr we will
   // keep undecided prop values until the rest of the formula in unraveled
   override def consume(time: Time)(atoms : T)
-                      (implicit par: FormulaParallelism) = this
+                      (implicit par: FormulaParallelism): NextFormula[T] = this
 }
 
 /** This class adds information to the time and atom consumption functions
@@ -501,24 +523,24 @@ case class BindNext[T](timedAtomsConsumer: TimedAtomsConsumer[T])
   // we cannot fully compute this statically, because the returned
   // formula depends on the input word, but TimedAtomsConsumer.returnsDynamicFormula
   // allows us to build a safe approximation 
-  override def safeWordLength = 
+  override def safeWordLength: Option[Timeout] =
     (!timedAtomsConsumer.returnsDynamicFormula) option Timeout(1)
-  override def result = None
-  override def consume(time: Time)(atoms: T)(implicit par: FormulaParallelism) =
+  override def result: Option[Prop.Status] = None
+  override def consume(time: Time)(atoms: T)(implicit par: FormulaParallelism): NextFormula[T] =
     timedAtomsConsumer(time)(atoms).nextFormula 
 }
 case class Not[T](phi : Formula[T]) extends Formula[T] {
-  override def safeWordLength = phi safeWordLength
+  override def safeWordLength: Option[Timeout] = phi safeWordLength
   override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
     new NextNot(phi.nextFormula)
 }
 
 class NextNot[T](phi : NextFormula[T]) extends Not[T](phi) with NextFormula[T] {
-  override def result = None
+  override def result: Option[Prop.Status] = None
   /** Note in the implementation of or we add Exception to the truth lattice, 
   * which always absorbs other values to signal a test evaluation error
   * */
-  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = {
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism): NextFormula[T] = {
     val phiConsumed = phi.consume(time)(atoms)
     phiConsumed.result match {
       case Some(res) => 
@@ -539,12 +561,12 @@ class NextNot[T](phi : NextFormula[T]) extends Not[T](phi) with NextFormula[T] {
 }
 
 case class Or[T](phis : Formula[T]*) extends Formula[T] {
-  override def safeWordLength = 
+  override def safeWordLength: Option[Timeout] =
     phis.map(_.safeWordLength)
         .toList.sequence
         .map(_.maxBy(_.instants))
   
-  override def nextFormula(implicit par: FormulaParallelism) =
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
     NextOr(phis.map(_.nextFormula):_*)
 }
 object NextOr {
@@ -568,16 +590,17 @@ class NextOr[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
     }  
   override protected def build(phis: ParSeq[NextFormula[T]]) =
     new NextOr(phis)
-  override protected def isSolverStatus(status: Prop.Status) = 
+
+  override protected def isSolverStatus(status: Prop.Status): Boolean =
     (status == Prop.True) || (status == Prop.Proof)
 }
 
 case class And[T](phis : Formula[T]*) extends Formula[T] {
-  override def safeWordLength = 
+  override def safeWordLength: Option[Timeout] =
     phis.map(_.safeWordLength)
         .toList.sequence
         .map(_.maxBy(_.instants))
-  override def nextFormula(implicit par: FormulaParallelism) =
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
     NextAnd(phis.map(_.nextFormula):_*)
 }
 object NextAnd {
@@ -601,7 +624,8 @@ class NextAnd[T](phis: ParSeq[NextFormula[T]]) extends NextBinaryOp[T](phis) {
     }
   override protected def build(phis: ParSeq[NextFormula[T]]) =
     new NextAnd(phis)
-  override protected def isSolverStatus(status: Prop.Status) = 
+
+  override protected def isSolverStatus(status: Prop.Status): Boolean =
     status == Prop.False
 }
 
@@ -648,16 +672,16 @@ abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
    * otherwise return false */
   protected def isSolverStatus(status: Prop.Status): Boolean
   
-  override def safeWordLength = 
+  override def safeWordLength: Option[Timeout] =
     phis.map(_.safeWordLength)
         .toList.sequence
         .map(_.maxBy(_.instants))
-  override def result = None
-  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = {
+  override def result: Option[Prop.Status] = None
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism): NextFormula[T] = {
     val (phisDefined, phisUndefined) = phis
       .map { _.consume(time)(atoms) }
       .partition { _.result.isDefined }     
-    val definedStatus = (! phisDefined.isEmpty) option {
+    val definedStatus = phisDefined.nonEmpty option {
       phisDefined
       .map { _.result.get }
       .reduce { apply(_, _) }
@@ -668,7 +692,7 @@ abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
     if (definedStatus.isDefined && definedStatus.get.isInstanceOf[Prop.Exception])
       Solved(definedStatus.get)
     else if ((definedStatus.isDefined && isSolverStatus(definedStatus.get)) 
-             || phisUndefined.size == 0) {
+             || phisUndefined.isEmpty) {
       Solved(definedStatus.getOrElse(Prop.Undecided))
     } else {
       // if definedStatus is undecided keep it in case 
@@ -683,19 +707,19 @@ abstract class NextBinaryOp[T](phis: ParSeq[NextFormula[T]])
 }
 
 case class Implies[T](phi1 : Formula[T], phi2 : Formula[T]) extends Formula[T] {
-  override def safeWordLength = for {
+  override def safeWordLength: Option[Timeout] = for {
     safeLength1 <- phi1.safeWordLength
     safeLength2 <- phi2.safeWordLength 
   } yield safeLength1 max safeLength2
   
-  override def nextFormula(implicit par: FormulaParallelism) =
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
     NextOr(new NextNot(phi1.nextFormula), phi2.nextFormula)
 }
 
 case class Next[T](phi : Formula[T]) extends Formula[T] {
   import Formula.intToTimeout
-  override def safeWordLength = phi.safeWordLength.map(_ + 1)
-  override def nextFormula(implicit par: FormulaParallelism) =
+  override def safeWordLength: Option[Timeout] = phi.safeWordLength.map(_ + 1)
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] =
     NextNext(phi.nextFormula)
 }
 object NextNext {
@@ -705,19 +729,19 @@ class NextNext[T](_phi: => NextFormula[T]) extends NextFormula[T] {
   import Formula.intToTimeout
 
   private lazy val phi = _phi  
-  override def safeWordLength = phi.safeWordLength.map(_ + 1)
-    
-  override def result = None
-  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism) = phi
+  override def safeWordLength: Option[Timeout] = phi.safeWordLength.map(_ + 1)
+
+  override def result: Option[Prop.Status] = None
+  override def consume(time: Time)(atoms : T)(implicit par: FormulaParallelism): NextFormula[T] = phi
 }
 
 case class Eventually[T](phi : Formula[T], t : Timeout) extends Formula[T] {
   require(t.instants >=1, s"timeout must be greater or equal than 1, found ${t}")
   
   import Formula.intToTimeout
-  override def safeWordLength = phi.safeWordLength.map(_ + t - 1)
+  override def safeWordLength: Option[Timeout] = phi.safeWordLength.map(_ + t - 1)
   
-  override def nextFormula(implicit par: FormulaParallelism) = {
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = {
     val nextPhi = phi.nextFormula
     if (t.instants <= 1) nextPhi 
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -728,8 +752,8 @@ case class Always[T](phi : Formula[T], t : Timeout) extends Formula[T] {
   require(t.instants >=1, s"timeout must be greater or equal than 1, found ${t}")
   
   import Formula.intToTimeout
-  override def safeWordLength = phi.safeWordLength.map(_ + t - 1)
-  override def nextFormula(implicit par: FormulaParallelism) = {
+  override def safeWordLength: Option[Timeout] = phi.safeWordLength.map(_ + t - 1)
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = {
     val nextPhi = phi.nextFormula
     if (t.instants <= 1) nextPhi 
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -740,12 +764,12 @@ case class Until[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends F
   require(t.instants >=1, s"timeout must be greater or equal than 1, found ${t}")
   
   import Formula.intToTimeout
-  override def safeWordLength = for {
+  override def safeWordLength: Option[Timeout] = for {
     safeLength1 <- phi1.safeWordLength
     safeLength2 <- phi2.safeWordLength 
   } yield (safeLength1 max safeLength2) + t -1 
     
-  override def nextFormula(implicit par: FormulaParallelism) = {
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = {
     val (nextPhi1, nextPhi2) = (phi1.nextFormula, phi2.nextFormula)
     if (t.instants <= 1) nextPhi2
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
@@ -757,12 +781,12 @@ case class Release[T](phi1 : Formula[T], phi2 : Formula[T], t : Timeout) extends
   require(t.instants >=1, s"timeout must be greater or equal than 1, found ${t}")
   
   import Formula.intToTimeout
-  override def safeWordLength = for {
+  override def safeWordLength: Option[Timeout] = for {
     safeLength1 <- phi1.safeWordLength
     safeLength2 <- phi2.safeWordLength 
   } yield (safeLength1 max safeLength2) + t -1
   
-  override def nextFormula(implicit par: FormulaParallelism) = {
+  override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = {
     val (nextPhi1, nextPhi2) = (phi1.nextFormula, phi2.nextFormula)
     if (t.instants <= 1) NextAnd(nextPhi1, nextPhi2)
     // equivalent to paper formula assuming nt(C[phi]) = nt(C[nt(phi)]) 
