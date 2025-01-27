@@ -1,6 +1,6 @@
 name := "sscheck-core"
 
-organization := "es.ucm.fdi"
+organization := "es.ucm.fdi.demiourgoi"
 
 version := "0.5.0"
 

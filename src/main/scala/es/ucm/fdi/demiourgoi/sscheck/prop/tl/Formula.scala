@@ -1,4 +1,4 @@
-package es.ucm.fdi.sscheck.prop.tl
+package es.ucm.fdi.demiourgoi.sscheck.prop.tl
 
 import org.specs2.execute.Result
 import org.scalacheck.Prop
