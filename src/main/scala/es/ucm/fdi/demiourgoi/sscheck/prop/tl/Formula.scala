@@ -58,7 +58,7 @@ object Formula {
     case _ : org.specs2.execute.Skipped => Prop.Undecided
     /* Prop.True is the same as passed, see lazy val passed
     * at https://github.com/rickynils/scalacheck/blob/1.12.2/src/main/scala/org/scalacheck/Prop.scala
-    * TOOD: use Prop.Proof instead?
+    * TODO: use Prop.Proof instead?
     */
     case _ : org.specs2.execute.Success => Prop.True
     case dec : org.specs2.execute.DecoratedResult[_] => resultToPropStatus(dec.result)
@@ -158,7 +158,8 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where the result of applying letterToResult to the
      *         current letter must hold now
      */
-    implicit def fromLetterToResult[T](letterToResult: T => Result): NowMagnet {type Result = BindNext[T]} =
+    implicit def fromLetterToResult[T, R](letterToResult: T => R)(implicit ev: R => Result)
+      : NowMagnet {type Result = BindNext[T]} =
       new NowMagnet {
         override type Result = BindNext[T]
         override def apply(): Result = BindNext(letterToResult)
@@ -167,7 +168,7 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where the result of applying letterToResult to the
      *         current letter must hold now
      */
-    implicit def fromLetterTimeToResult[T](letterToResult: (T, Time) => Result): NowMagnet {type Result = BindNext[T]} =
+    implicit def fromLetterTimeToResult[T, R](letterToResult: (T, Time) => R)(implicit ev: R => Result): NowMagnet {type Result = BindNext[T]} =
       new NowMagnet {
         override type Result = BindNext[T]
         override def apply(): Result = BindNext(letterToResult)
@@ -219,7 +220,8 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where the result of applying letterToResult to the
      *         current letter must hold in the next instant
      */
-    implicit def fromResultFun[T](letterToResult: T => Result): ConsumeMagnet {type Result = BindNext[T]} =
+    implicit def fromResultFun[T, R](letterToResult: T => R)(implicit ev: R => Result)
+    : ConsumeMagnet {type Result = BindNext[T]} =
       new ConsumeMagnet {
         override type Result = BindNext[T]
         override def apply(): Result = BindNext(letterToResult)
@@ -246,7 +248,8 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where the result of applying letterToResult to the
      *         current letter must hold in the next instant
      */
-    implicit def fromLetterToResult[T](letterToResult: (T, Time) => Result): ConsumeMagnet {type Result = BindNext[T]} =
+    implicit def fromLetterToResult[T, R](letterToResult: (T, Time) => R)(implicit ev: R => Result)
+    : ConsumeMagnet {type Result = BindNext[T]} =
       new ConsumeMagnet {
         override type Result = BindNext[T]
         override def apply(): Result = BindNext(letterToResult)
@@ -277,7 +280,8 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where eventually the result of applying letterToResult to the
      *         current letter must hold now
      */
-    implicit def fromLetterToResult[T](letterToResult: T => Result): EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
+    implicit def fromLetterToResult[T, R](letterToResult: T => R)(implicit ev: R => Result)
+    : EventuallyMagnet {type Result = TimeoutMissingFormula[T]} =
       new EventuallyMagnet {
         override type Result = TimeoutMissingFormula[T]
         override def apply(): Result = eventually(now(letterToResult))
@@ -322,7 +326,8 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     /** @return a formula where always the result of applying letterToResult to the
      *         current letter must hold now
      */
-    implicit def fromLetterToResult[T](letterToResult: T => Result): AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
+    implicit def fromLetterToResult[T, R](letterToResult: T => R)(implicit ev: R => Result)
+    : AlwaysMagnet {type Result = TimeoutMissingFormula[T]} =
       new AlwaysMagnet {
         override type Result = TimeoutMissingFormula[T]
         override def apply(): Result = always(now(letterToResult))
@@ -380,7 +385,8 @@ sealed trait Formula[T]
     /** @return a formula where this formula happens until the result
      *          of applying letterToResult to the current letter holds
      */
-    implicit def fromLetterToResult(letterToResult : T => Result): UntilMagnet {type Result = TimeoutMissingFormula[T]} =
+    implicit def fromLetterToResult[R](letterToResult : T => R)(implicit ev: R => Result)
+    : UntilMagnet {type Result = TimeoutMissingFormula[T]} =
       new UntilMagnet {
         override type Result = TimeoutMissingFormula[T]
         override def apply(phi1: Formula[T]): Result = phi1.until(now(letterToResult))
@@ -422,7 +428,8 @@ sealed trait Formula[T]
      *          of applying letterToResult to the current letter from
      *          holding now
      */
-    implicit def fromLetterToResult(letterToResult : T => Result): ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
+    implicit def fromLetterToResult[R](letterToResult : T => R)(implicit ev: R => Result)
+    : ReleaseMagnet {type Result = TimeoutMissingFormula[T]} =
       new ReleaseMagnet {
         override type Result = TimeoutMissingFormula[T]
         override def apply(phi1: Formula[T]): Result = phi1.release(now(letterToResult))
