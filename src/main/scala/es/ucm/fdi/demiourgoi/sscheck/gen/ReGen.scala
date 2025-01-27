@@ -1,11 +1,10 @@
-package es.ucm.fdi.sscheck.gen
+package es.ucm.fdi.demiourgoi.sscheck.gen
 
 import scala.collection.mutable.{Seq => MSeq}
 import scala.collection.mutable.ListBuffer
 
 import org.scalacheck.Gen
 
-import es.ucm.fdi.sscheck.gen.UtilsGen.containerOfNtoM;
 import Buildables.buildableSeq
 import UtilsGen.{containerOfNtoM}
 

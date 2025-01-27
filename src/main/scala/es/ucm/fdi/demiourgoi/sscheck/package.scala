@@ -1,4 +1,4 @@
-package es.ucm.fdi {
+package es.ucm.fdi.demiourgoi {
   package object sscheck {
     type TestCaseId = Int
   }
