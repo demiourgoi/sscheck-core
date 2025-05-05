@@ -16,6 +16,8 @@ import scalaz.std.option._
 import scala.annotation.tailrec
 import scala.language.{implicitConversions, postfixOps}
 object Formula {
+  type TimedLetter[Letter] = (Time, Letter)
+
   // default implicit FormulaParallelism https://stackoverflow.com/questions/12767074/how-to-provide-default-value-for-implicit-parameters-at-class-level
   implicit val defaultFormulaParallelism: FormulaParallelism =
     TaskSupportFormulaParallelism(new ExecutionContextTaskSupport())
@@ -452,6 +454,8 @@ sealed trait Formula[T]
  */
 sealed trait NextFormula[T]
   extends Formula[T] {
+  import Formula.TimedLetter
+
   override def nextFormula(implicit par: FormulaParallelism): NextFormula[T] = this
 
   /** @return Option.Some if this formula is resolved, and Option.None
@@ -464,10 +468,30 @@ sealed trait NextFormula[T]
   /** @return a new formula resulting from progressing in the evaluation
    *  of this formula by consuming the new values atoms for the atomic
    *  propositions corresponding to the values of the element of the universe
-   *  at a new instant of time time. This corresponds to the notion of "letter simplification"
+   *  at a new instant of time. This corresponds to the notion of "letter simplification"
    *  in the paper
    */
   def consume(time: Time)(atoms: T)(implicit par: FormulaParallelism): NextFormula[T]
+
+  /** @return start with this and consume all the letters until we get a formula that
+   *          is defined or there are no more letters, and return that last formula.
+   * */
+  def evaluate(timedLetters: Iterator[TimedLetter[T]],
+               onEvaluationStep: (TimedLetter[T], NextFormula[T]) => Unit)
+              (implicit par: FormulaParallelism): NextFormula[T] = {
+    import scala.util.control.Breaks._
+
+    var currentFormula = this
+    breakable {
+      timedLetters.foreach { timedLetter =>
+        val (letterTime, letter) = timedLetter
+        currentFormula = currentFormula.consume(letterTime)(letter)
+        onEvaluationStep(timedLetter, currentFormula)
+        if (currentFormula.result.isDefined) break()
+      }
+    }
+    currentFormula
+  }
 }
 
 /** Resolved formulas

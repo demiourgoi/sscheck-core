@@ -7,7 +7,7 @@ import org.specs2.runner.JUnitRunner
 import org.specs2.ScalaCheck
 import org.specs2.Specification
 import org.specs2.execute.Result
-import Formula._
+import Formula.{TimedLetter, _}
 import org.specs2.matcher.MatchResult
 import org.specs2.specification.core.SpecStructure
 
@@ -24,6 +24,7 @@ class FormulaTest
       - where evaluation with consume works correclty $consumeOk
       - where Formula.next works ok when used for several times $nextTimes 
       - where safeWordLength is ok $pending
+      - where $simpleFormulasEvaluateCorrectly
     """    
       
   // Consider a universe with an Int i and a String s
@@ -54,7 +55,28 @@ class FormulaTest
     aP must not be_==(aQ)
     // TODO: add examples for each of the case classes
   }
-  
+
+  def simpleFormulasEvaluateCorrectly: Result = {
+    type U = Int
+    val onEvaluationStep = (letter: TimedLetter[U], currentFormula: NextFormula[U]) => {
+      println(s"Current formula at letter $letter is $currentFormula")
+    }
+    val intListToTimedLettersIt: Seq[Int] => Iterator[TimedLetter[Int]] =
+      _.zipWithIndex.map{case(x, idx) => (Time(idx.toLong), x)}.iterator
+
+    val formula = always { x : Int =>
+      x must be > 0
+    } during 2
+    val letters = (1 to 10)
+
+    val evaluatedFormula: NextFormula[U] =
+      formula.nextFormula.evaluate(intListToTimedLettersIt(letters), onEvaluationStep)
+    evaluatedFormula.result must beSome // FIXME assert specific result
+    // FIXME table test with basic shallow versions for eventually and all other variants
+    // FIXME use NextFormula.evaluate on SpanStreamEvaluator and remove comment
+  }
+
+
   // TODO: adapt to new lazy next form 
   // TODO: adapt to NextAnd and NextOr extending NextBinaryOp
   def nextFormulaOk: Result = {
