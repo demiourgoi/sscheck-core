@@ -15,7 +15,7 @@ bintrayPackageLabels := Seq("testing")
 bintrayVcsUrl := Some("git@github.com:demiourgoi/sscheck-core.git")
 
 // https://mvnrepository.com/artifact/org.specs2/specs2-core_2.13
-lazy val specs2Version = "4.20.9"
+lazy val specs2Version = "4.21.0"
 
 // Use `sbt doc` to generate scaladoc, more on chapter 14.8 of "Scala Cookbook"
 

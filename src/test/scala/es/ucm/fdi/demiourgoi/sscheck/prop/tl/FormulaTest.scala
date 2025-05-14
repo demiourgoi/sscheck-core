@@ -10,11 +10,12 @@ import org.specs2.execute.Result
 import Formula.{TimedLetter, _}
 import org.specs2.matcher.MatchResult
 import org.specs2.specification.core.SpecStructure
+import org.specs2.specification.Tables
 
 /* TODO tests for formulas with quantifiers */
 @RunWith(classOf[JUnitRunner])
 class FormulaTest
-  extends Specification {
+  extends Specification with Tables {
   
   def is: SpecStructure = sequential ^ s2"""
     Basic test for temporal logic formulas representation
@@ -24,7 +25,7 @@ class FormulaTest
       - where evaluation with consume works correclty $consumeOk
       - where Formula.next works ok when used for several times $nextTimes 
       - where safeWordLength is ok $pending
-      - where $simpleFormulasEvaluateCorrectly
+      - where simpleFormulasEvaluateCorrectly $simpleFormulasEvaluateCorrectlyTable
     """    
       
   // Consider a universe with an Int i and a String s
@@ -56,7 +57,33 @@ class FormulaTest
     // TODO: add examples for each of the case classes
   }
 
-  def simpleFormulasEvaluateCorrectly: Result = {
+  val always5XPositive = always { x : Int =>
+    x must be > 0
+  } during 5
+
+  // Note: eventually crashes with Specs2's eventually!
+  val eventually5XPositive = later { x : Int =>
+    x must be > 0
+  } on 5
+
+  val firstNumberTwice = next { x: Int => now{ y: Int => x === y } }
+
+  val simpleFormulasEvaluateCorrectlyTable =
+    "formula"               | "letters"  | "expectedStatus" |>
+    always5XPositive        ! (1 to 10)  ! Some(Prop.True)  |
+    always5XPositive        ! (-10 to 0) ! Some(Prop.False) |
+    always5XPositive        ! (1 to 2)   ! None             |
+    eventually5XPositive    ! (-2 to 10) ! Some(Prop.True)  |
+    eventually5XPositive    ! (-10 to 0) ! Some(Prop.False) |
+    eventually5XPositive    ! List(-1)   ! None             |
+    now{x: Int => x === 1}  ! List(1)    ! Some(Prop.True)  |
+    now{x: Int => x === 1}  ! List(0)    ! Some(Prop.False) |
+    now{x: Int => x === 1}  ! List()     ! None             |
+    firstNumberTwice        ! List(1,1)  ! Some(Prop.True)  |
+    firstNumberTwice        ! List(1,2)  ! Some(Prop.False) |
+    firstNumberTwice        ! List()     ! None             |
+    { (formula: Formula[Int], letters: Seq[Int], expectedStatus: Option[Prop.Status]) =>
+
     type U = Int
     val onEvaluationStep = (letter: TimedLetter[U], currentFormula: NextFormula[U]) => {
       println(s"Current formula at letter $letter is $currentFormula")
@@ -64,18 +91,10 @@ class FormulaTest
     val intListToTimedLettersIt: Seq[Int] => Iterator[TimedLetter[Int]] =
       _.zipWithIndex.map{case(x, idx) => (Time(idx.toLong), x)}.iterator
 
-    val formula = always { x : Int =>
-      x must be > 0
-    } during 2
-    val letters = (1 to 10)
-
     val evaluatedFormula: NextFormula[U] =
       formula.nextFormula.evaluate(intListToTimedLettersIt(letters), onEvaluationStep)
-    evaluatedFormula.result must beSome // FIXME assert specific result
-    // FIXME table test with basic shallow versions for eventually and all other variants
-    // FIXME use NextFormula.evaluate on SpanStreamEvaluator and remove comment
+    evaluatedFormula.result === expectedStatus
   }
-
 
   // TODO: adapt to new lazy next form 
   // TODO: adapt to NextAnd and NextOr extending NextBinaryOp
