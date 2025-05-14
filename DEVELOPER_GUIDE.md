@@ -20,8 +20,10 @@ scalafixEnable
 scalafixAll --check
 
 publishLocal
+# for making it available to gradle
+publishM2
 
-# ver tb https://github.com/demiourgoi/flink-check/blob/master/ci/run_all_tests.sh
+# see also https://github.com/demiourgoi/flink-check/blob/master/ci/run_all_tests.sh
 sbt -no-colors 'publishLocal'
 
 help
