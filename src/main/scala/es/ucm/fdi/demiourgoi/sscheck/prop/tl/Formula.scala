@@ -108,15 +108,21 @@ object Formula {
    *
    * See example in `FormulaTest::evensIfMatchesThenAlwaysEventuallyHigher`
    */
-  def ifMatchesThen[T, B](matchCriteria: PartialFunction[T, B], matchingToFormula: B => Formula[T],
+  def ifMatchesThen[T, B](matchCriteria: (T) => Option[B], matchingToFormula: B => Formula[T],
     ): T => Formula[T] = (letter: T) => {
-      val matchingOpt = matchCriteria.lift(letter)
+      val matchingOpt = matchCriteria(letter)
       matchingOpt.fold[Formula[T]](Solved(Prop.True))(matchingToFormula)
     }
 
+  /** Like `ifMatchesThen` but with a nicer DSL and supporting partial functions.
+   * See example in `FormulaTest::evensIfMatchesPAlwaysEventuallyHigher` */
+  def ifMatchesP[T, B](matchCriteria: PartialFunction[T, B]): MatchingPendingToFormula[T, B] = {
+    new MatchingPendingToFormula[T, B](ifMatchesThen(matchCriteria.lift, _))
+  }
+
   /** Like `ifMatchesThen` but with a nicer DSL.
    * See example in `FormulaTest::evensIfMatchesAlwaysEventuallyHigher` */
-  def ifMatches[T, B](matchCriteria: PartialFunction[T, B]): MatchingPendingToFormula[T, B] = {
+  def ifMatches[T, B](matchCriteria: (T) => Option[B]): MatchingPendingToFormula[T, B] = {
     new MatchingPendingToFormula[T, B](ifMatchesThen(matchCriteria, _))
   }
 

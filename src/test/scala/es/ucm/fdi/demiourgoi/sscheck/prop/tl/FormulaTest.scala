@@ -97,7 +97,7 @@ class FormulaTest
 
   // Same as evensOptAlwaysEventuallyHigher but using ifMatchesThen
   val evensIfMatchesThenAlwaysEventuallyHigher = always {
-    ifMatchesThen[Int, Int]({ case x if x % 2 == 0 => x },
+    ifMatchesThen[Int, Int](x => if (x % 2 == 0) Some(x) else None,
     { evenX =>
       later { y : Int =>
         y must be > evenX
@@ -105,8 +105,17 @@ class FormulaTest
     })
   } during 2
 
+  val evensIfMatchesPAlwaysEventuallyHigher = always {
+    ifMatchesP[Int, Int]{ case x if x % 2 == 0 => x
+    } ==> { evenX =>
+        later { y : Int =>
+          y must be > evenX
+        } on 3
+      }
+    } during 2
+
   val evensIfMatchesAlwaysEventuallyHigher = always {
-    ifMatches[Int, Int]{ case x if x % 2 == 0 => x
+    ifMatches[Int, Int]{ x => if (x % 2 == 0) Some(x) else None
     } ==> { evenX =>
         later { y : Int =>
           y must be > evenX
@@ -141,6 +150,10 @@ class FormulaTest
     evensIfMatchesThenAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
     evensIfMatchesThenAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
     evensIfMatchesThenAlwaysEventuallyHigher ! List(2)          ! None             |
+    evensIfMatchesPAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
+    evensIfMatchesPAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
+    evensIfMatchesPAlwaysEventuallyHigher ! List(3, 1, 3, 1) ! Some(Prop.True) |
+    evensIfMatchesPAlwaysEventuallyHigher ! List(2)          ! None             |
     evensIfMatchesAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
     evensIfMatchesAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
     evensIfMatchesAlwaysEventuallyHigher ! List(3, 1, 3, 1) ! Some(Prop.True) |
