@@ -75,6 +75,15 @@ class FormulaTest
     } on 3
   } during 2
 
+  // Liveness for specific events
+  val evensAlwaysEventuallyHigher = always { x : Int =>
+    val isEven = Solved[Int](x % 2 === 0)
+    // Note: the parenthesis to the right is required for this to parse ok
+    isEven ==> (later { y : Int =>
+      y must be > x
+    } on 3)
+  } during 2
+
   val simpleFormulasEvaluateCorrectlyTable =
     "formula"               | "letters"  | "expectedStatus" |>
     always5XPositive        ! (1 to 10)  ! Some(Prop.True)  |
@@ -92,6 +101,9 @@ class FormulaTest
     alwaysEventuallyHigher  ! List(1, 0, 1, 2) ! Some(Prop.True)  |
     alwaysEventuallyHigher  ! List(1, 0, 1, 0) ! Some(Prop.False) |
     alwaysEventuallyHigher  ! List(1)          ! None             |
+    evensAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
+    evensAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
+    evensAlwaysEventuallyHigher ! List(2)          ! None             |
     { (formula: Formula[Int], letters: Seq[Int], expectedStatus: Option[Prop.Status]) =>
 
     type U = Int
