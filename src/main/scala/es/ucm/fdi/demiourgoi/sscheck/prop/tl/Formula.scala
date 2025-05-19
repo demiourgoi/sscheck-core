@@ -67,24 +67,24 @@ object Formula {
     case _ => Prop.Undecided
   }
 
-/** @return a formula where the result of applying to the current letter
+  /** @return a formula where the result of applying to the current letter
   *         the projection proj and then assertion must hold now
   */
-def at[T, A, R](proj : (T) => A)(assertion : A => R)(implicit ev: R => Result): Formula[T] =
-  now(proj andThen assertion andThen implicitly[Function[R, Result]])
+  def at[T, A, R](proj : (T) => A)(assertion : A => R)(implicit ev: R => Result): Formula[T] =
+    now(proj andThen assertion andThen implicitly[Function[R, Result]])
 
-/** @return a formula where the result of applying to the current tletter
+  /** @return a formula where the result of applying to the current tletter
   *         the projection proj and then assertion must hold now
- */
-def atS[T, A](proj : (T) => A)(assertion: A => Prop.Status): Formula[T] =
-  now(assertion compose proj)
-
-/** @return a formula where the result of applying to the current tletter
-  *         the projection proj and then assertion must hold in the next
-  *         instant
   */
-def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
-  next(atomsConsumer compose proj)
+  def atS[T, A](proj : (T) => A)(assertion: A => Prop.Status): Formula[T] =
+    now(assertion compose proj)
+
+  /** @return a formula where the result of applying to the current tletter
+    *         the projection proj and then assertion must hold in the next
+    *         instant
+    */
+  def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
+    next(atomsConsumer compose proj)
 
   // Factories for non-temporal connectives: note these act as clever constructors
   // for `Or` and `And`
@@ -96,6 +96,29 @@ def atF[T, A](proj : (T) => A)(atomsConsumer : A => Formula[T]): Formula[T] =
     if (phis.isEmpty) Solved(Prop.True)
     else if (phis.length == 1) phis(0)
     else And(phis:_*)
+
+  /** @return A function that given a letter applies the match criteria, and
+   * returns a formula such that
+   * - if the match is None then the formula is always True
+   * - if the match is Some then is the formula build by passing the match to matchingToFormula
+   *
+   * This corresponds to "if matches ==> formula for match". This cannot be done directly using
+   * `Implies`, because that is translated to an Or, that in general evaluates both sides in parallel
+   * so would not be able to assume in the conclusion that the match is a Some.
+   *
+   * See example in `FormulaTest::evensIfMatchesThenAlwaysEventuallyHigher`
+   */
+  def ifMatchesThen[T, B](matchCriteria: PartialFunction[T, B], matchingToFormula: B => Formula[T],
+    ): T => Formula[T] = (letter: T) => {
+      val matchingOpt = matchCriteria.lift(letter)
+      matchingOpt.fold[Formula[T]](Solved(Prop.True))(matchingToFormula)
+    }
+
+  /** Like `ifMatchesThen` but with a nicer DSL.
+   * See example in `FormulaTest::evensIfMatchesAlwaysEventuallyHigher` */
+  def ifMatches[T, B](matchCriteria: PartialFunction[T, B]): MatchingPendingToFormula[T, B] = {
+    new MatchingPendingToFormula[T, B](ifMatchesThen(matchCriteria, _))
+  }
 
   // Factories for temporal connectives
   // Using https://spray.readthedocs.io/en/latest/blog/2012-12-13-the-magnet-pattern.html
@@ -876,6 +899,17 @@ class TimeoutMissingFormula[T](val toFormula : Timeout => Formula[T])
    */
   def during(t : Timeout): Formula[T] = on(t)
 }
+
+/** This class is used in the DSL for `ifMatches` */
+class MatchingPendingToFormula[T, B](
+    val toFromLetterToFormula : (B => Formula[T]) => T => Formula[T]
+  ) extends Serializable {
+
+    def `then`(matchingToFormula: B => Formula[T]): T => Formula[T] =
+      toFromLetterToFormula(matchingToFormula)
+    def ==>(matchingToFormula: B => Formula[T]): T => Formula[T] =
+      `then`(matchingToFormula)
+  }
 
 /** @param millis: number of milliseconds since January 1, 1970 UTC
  * */

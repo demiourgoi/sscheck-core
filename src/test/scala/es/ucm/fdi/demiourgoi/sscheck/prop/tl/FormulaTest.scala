@@ -84,6 +84,36 @@ class FormulaTest
     } on 3)
   } during 2
 
+  // Liveness for specific events with partial matching: using fold to
+  // work around ==> being parallel instead of short circuiting
+  val evensOptAlwaysEventuallyHigher = always { x : Int =>
+    val evenOpt: Option[Int] = List(x).collectFirst{ case x if x % 2 == 0 => x }
+    evenOpt.fold[Formula[Int]](Solved(ok)){ evenX: Int =>
+      later { y : Int =>
+        y must be > evenX
+      } on 3
+    }
+  } during 2
+
+  // Same as evensOptAlwaysEventuallyHigher but using ifMatchesThen
+  val evensIfMatchesThenAlwaysEventuallyHigher = always {
+    ifMatchesThen[Int, Int]({ case x if x % 2 == 0 => x },
+    { evenX =>
+      later { y : Int =>
+        y must be > evenX
+      } on 3
+    })
+  } during 2
+
+  val evensIfMatchesAlwaysEventuallyHigher = always {
+    ifMatches[Int, Int]{ case x if x % 2 == 0 => x
+    } ==> { evenX =>
+        later { y : Int =>
+          y must be > evenX
+        } on 3
+      }
+    } during 2
+
   val simpleFormulasEvaluateCorrectlyTable =
     "formula"               | "letters"  | "expectedStatus" |>
     always5XPositive        ! (1 to 10)  ! Some(Prop.True)  |
@@ -104,6 +134,17 @@ class FormulaTest
     evensAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
     evensAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
     evensAlwaysEventuallyHigher ! List(2)          ! None             |
+    evensOptAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
+    evensOptAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
+    evensOptAlwaysEventuallyHigher ! List(3, 1, 3, 1) ! Some(Prop.True) |
+    evensOptAlwaysEventuallyHigher ! List(2)          ! None             |
+    evensIfMatchesThenAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
+    evensIfMatchesThenAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
+    evensIfMatchesThenAlwaysEventuallyHigher ! List(2)          ! None             |
+    evensIfMatchesAlwaysEventuallyHigher ! List(1, 0, 0, 1) ! Some(Prop.True)  |
+    evensIfMatchesAlwaysEventuallyHigher ! List(2, 0, 0, 1) ! Some(Prop.False) |
+    evensIfMatchesAlwaysEventuallyHigher ! List(3, 1, 3, 1) ! Some(Prop.True) |
+    evensIfMatchesAlwaysEventuallyHigher ! List(2)          ! None             |
     { (formula: Formula[Int], letters: Seq[Int], expectedStatus: Option[Prop.Status]) =>
 
     type U = Int
