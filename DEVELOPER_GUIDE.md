@@ -59,6 +59,12 @@ Run the task "Metals: Import build" to setup the IDE and check the "OUTPUT" tab 
 
 Metals doesn't seem to work on Windows. For Ubuntu install the JDK sources (e.g. with `sudo apt install openjdk-19-source`) and re-run "Metals: Run doctor"
 
+### Cline
+
+Optionally, [Cline](https://docs.cline.bot/) is a free code assistant that can accelerate coding tasks, specially when using the [memory bank pattern](https://docs.cline.bot/prompting/cline-memory-bank). You need to connect to an LLM inference API to use it.  
+A simple option is [Mistral](https://console.mistral.ai) using the "Experiment" that does log your prompts for training the model, which should be fine as this is an open source project anyway. Per [Mistral docs](https://mistral.ai/solutions/coding), Devstral medium is a good option for Cline.
+
+
 ## Specs2 docs
 
 You have to use the version of the specs2 user guide corresponding to the dependency on build.sbt, that currently uses version 4.x.x. 
