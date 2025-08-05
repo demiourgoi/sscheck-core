@@ -10,9 +10,26 @@ crossScalaVersions := Seq("2.13.15")
 
 licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
-bintrayPackageLabels := Seq("testing")
+homepage := Some(url("https://github.com/demiourgoi/sscheck-core"))
 
-bintrayVcsUrl := Some("git@github.com:demiourgoi/sscheck-core.git")
+scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/demiourgoi/sscheck-core"),
+    "scm:git@github.com:demiourgoi/sscheck-core.git"
+  )
+)
+
+developers := List(
+  Developer(
+    id    = "juanrh",
+    name  = "Juan Rodriguez",
+    email = "",
+    url   = url("https://juanrh.github.io")
+  )
+)
+
+publishTo := Some("GitHub Packages" at "https://maven.pkg.github.com/demiourgoi/sscheck-core")
+
 
 // https://mvnrepository.com/artifact/org.specs2/specs2-core_2.13
 lazy val specs2Version = "4.21.0"
@@ -46,5 +63,8 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" 
 resolvers ++= Seq(
   "MVN Repository.com" at "https://mvnrepository.com/artifact/",
   "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
-  "Spark Packages Repo" at "https://dl.bintray.com/spark-packages/maven"
+  "Spark Packages Repo" at "https://dl.bintray.com/spark-packages/maven",
+  "GitHub Packages" at "https://maven.pkg.github.com/demiourgoi/sscheck-core"
 )
+
+credentials += Credentials("GitHub Package Registry", "maven.pkg.github.com", sys.env.get("GITHUB_USERNAME").getOrElse(""), sys.env.get("GITHUB_TOKEN").getOrElse(""))
