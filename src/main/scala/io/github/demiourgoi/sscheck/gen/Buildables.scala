@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.gen
+package io.github.demiourgoi.sscheck.gen
 
 import scala.collection.{Seq => MSeq}
 import org.scalacheck.util.Buildable

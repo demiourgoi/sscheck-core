@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi {
+package io.github.demiourgoi {
   package object sscheck {
     type TestCaseId = Int
   }

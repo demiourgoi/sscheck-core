@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.prop.tl
+package io.github.demiourgoi.sscheck.prop.tl
 
 import org.scalacheck.{Gen, Prop}
 import org.scalacheck.Arbitrary.arbitrary

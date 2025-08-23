@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.gen
+package io.github.demiourgoi.sscheck.gen
 
 import org.scalacheck.{Properties, Gen}
 import org.scalacheck.Arbitrary.arbitrary
@@ -11,7 +11,7 @@ import BatchGenConversions._
 import PStreamGen._
 import Buildables.{buildableBatch, buildablePDStreamFromBatch}
 import PStreamMatchers._
-import es.ucm.fdi.sscheck.prop.UtilsProp
+import io.github.demiourgoi.sscheck.prop.UtilsProp
 
 /** Tests for the LTL inspired HO generators defined at BatchGen and DStreamGen 
  *  

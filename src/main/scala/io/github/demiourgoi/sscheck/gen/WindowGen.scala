@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.gen
+package io.github.demiourgoi.sscheck.gen
 
 import scala.collection.mutable.{Seq => MSeq}
 import scala.collection.immutable.{Seq => ISeq}
@@ -7,7 +7,7 @@ import org.scalacheck.Gen
 import org.scalacheck.Shrink
 import org.scalacheck.Shrink.shrink
 import scala.language.implicitConversions
-import es.ucm.fdi.demiourgoi.sscheck.prop.tl.Timeout
+import io.github.demiourgoi.sscheck.prop.tl.Timeout
 
 /** Implicit conversions removed from BatchGen companion. This is needed
  *  because we cannot populate the name space with standard names for HO generators

@@ -1,8 +1,8 @@
 name := "sscheck-core"
 
-organization := "es.ucm.fdi.demiourgoi"
+organization := "io.github.demiourgoi"
 
-version := "0.5.1-SNAPSHOT"
+version := "0.5.1"
 
 scalaVersion := "2.13.15"
 
@@ -28,7 +28,9 @@ developers := List(
   )
 )
 
-publishTo := Some("GitHub Packages" at "https://maven.pkg.github.com/demiourgoi/sscheck-core")
+sonatypeProfileName := "io.github.demiourgoi"
+
+publishTo := sonatypePublishToBundle.value
 
 
 // https://mvnrepository.com/artifact/org.specs2/specs2-core_2.13
@@ -63,8 +65,5 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" 
 resolvers ++= Seq(
   "MVN Repository.com" at "https://mvnrepository.com/artifact/",
   "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
-  "Spark Packages Repo" at "https://dl.bintray.com/spark-packages/maven",
-  "GitHub Packages" at "https://maven.pkg.github.com/demiourgoi/sscheck-core"
+  "Spark Packages Repo" at "https://dl.bintray.com/spark-packages/maven"
 )
-
-credentials += Credentials("GitHub Package Registry", "maven.pkg.github.com", sys.env.get("GITHUB_USERNAME").getOrElse(""), sys.env.get("GITHUB_TOKEN").getOrElse(""))

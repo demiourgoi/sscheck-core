@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.gen
+package io.github.demiourgoi.sscheck.gen
 
 import org.scalacheck.{Properties, Gen}
 import org.scalacheck.Arbitrary.arbitrary

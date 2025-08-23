@@ -1,4 +1,4 @@
-package es.ucm.fdi.demiourgoi.sscheck.gen
+package io.github.demiourgoi.sscheck.gen
 
 import scala.language.{postfixOps,higherKinds}
 import scala.collection.{Seq => ISeq}
