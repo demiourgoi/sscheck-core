@@ -2,36 +2,11 @@ name := "sscheck-core"
 
 organization := "io.github.demiourgoi"
 
-version := "0.5.1"
+version := "0.5.1-SNAPSHOT"
 
 scalaVersion := "2.13.15"
 
 crossScalaVersions := Seq("2.13.15")
-
-licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-
-homepage := Some(url("https://github.com/demiourgoi/sscheck-core"))
-
-scmInfo := Some(
-  ScmInfo(
-    url("https://github.com/demiourgoi/sscheck-core"),
-    "scm:git@github.com:demiourgoi/sscheck-core.git"
-  )
-)
-
-developers := List(
-  Developer(
-    id    = "juanrh",
-    name  = "Juan Rodriguez",
-    email = "",
-    url   = url("https://juanrh.github.io")
-  )
-)
-
-sonatypeProfileName := "io.github.demiourgoi"
-
-publishTo := sonatypePublishToBundle.value
-
 
 // https://mvnrepository.com/artifact/org.specs2/specs2-core_2.13
 lazy val specs2Version = "4.21.0"
@@ -67,3 +42,44 @@ resolvers ++= Seq(
   "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
   "Spark Packages Repo" at "https://dl.bintray.com/spark-packages/maven"
 )
+
+// https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html
+
+// Configure Sonatype credentials
+credentials += Credentials(Path.userHome / ".demiourgoi_sonatype_creds")
+
+ThisBuild / organization :=  "io.github.demiourgoi"
+ThisBuild / organizationName := "demiourgoi"
+ThisBuild / organizationHomepage := Some(url("https://github.com/demiourgoi"))
+ThisBuild / versionScheme := Some("semver-spec")
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/demiourgoi/sscheck-core"),
+    "scm:git@github.com:demiourgoi/sscheck-core.git"
+  )
+)
+ThisBuild / developers := List(
+  Developer(
+    id    = "juanrh",
+    name  = "Juan Rodriguez",
+    email = "",
+    url   = url("https://juanrh.github.io")
+  )
+)
+
+ThisBuild / description := "Distributed computing engine independent code for sscheck."
+ThisBuild / licenses := List(
+  "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+)
+ThisBuild / homepage := Some(url("https://github.com/example/project"))
+
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishMavenStyle := true
+
+// new setting for the Central Portal
+ThisBuild / publishTo := {
+  val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+  if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+  else localStaging.value
+}
