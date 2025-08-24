@@ -2,7 +2,7 @@ name := "sscheck-core"
 
 organization := "io.github.demiourgoi"
 
-version := "0.5.1-SNAPSHOT"
+version := "0.5.1"
 
 scalaVersion := "2.13.15"
 
@@ -44,7 +44,6 @@ resolvers ++= Seq(
 )
 
 // https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html
-
 // Configure Sonatype credentials
 credentials += Credentials(Path.userHome / ".demiourgoi_sonatype_creds")
 
@@ -71,13 +70,19 @@ ThisBuild / description := "Distributed computing engine independent code for ss
 ThisBuild / licenses := List(
   "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
 )
-ThisBuild / homepage := Some(url("https://github.com/example/project"))
+ThisBuild / homepage := Some(url("https://github.com/demiourgoi/sscheck-core"))
 
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishMavenStyle := true
 
+// Determine if this is a snapshot version
+ThisBuild / isSnapshot := {
+  version.value.endsWith("-SNAPSHOT")
+}
+
 // new setting for the Central Portal
+// https://central.sonatype.org/publish/publish-portal-snapshots/#publishing-snapshot-releases-for-your-project
 ThisBuild / publishTo := {
   val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
   if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
