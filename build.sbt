@@ -2,7 +2,7 @@ name := "sscheck-core"
 
 organization := "io.github.demiourgoi"
 
-version := "0.5.2"
+version := "0.5.3-SNAPSHOT"
 
 scalaVersion := "2.13.15"
 

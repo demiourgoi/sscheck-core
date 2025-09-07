@@ -44,9 +44,9 @@ So the __publishing process__ is as follows:
 
 - We use version `${version}-SNAPSHOT` for development, using `publishLocal` or `publishM2` to make the snapshot version available in the same workspace.
 - When a version is ready for publish
-  - Change version to "${version}" without "-SNAPSHOT" and publish the version as seen below
-  - We are not using branches or tags for each versions, we can add that later if needed, but it's complexity with no value for now. We just use the `scala_2.13` branch, with the _invariant_ that the version monotonically increases as we move towards the tip of the branch.
-
+  - Change version to "${version}" without "-SNAPSHOT" and publish the version as seen below. Consider a minor or major version increase as required.
+  - Increase the patch version and add "-SNAPSHOT". Consider a minor or major version increase as required.
+    - We are not using branches or tags for each versions, we can add that later if needed, but it's complexity with no value for now. We just use the `scala_2.13` branch, with the _invariant_ that the version monotonically increases as we move towards the tip of the branch.
 
 How to actually publish:
 
