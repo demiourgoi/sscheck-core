@@ -37,12 +37,7 @@ sbt -no-colors compile
 
 This repo uses mostly [semantic versioning](https://semver.org/), but we sometimes add the suffix "-SNAPSHOT" for development versions.  
 We publish to https://central.sonatype.com/artifact/io.github.demiourgoi/sscheck-core_2.13  
-See one time setup instructions in our shared Google drive doc.
-
-We publish to __Github package__, which requires manually deleting a version to publish a version more than once, so we only use "-SNAPSHOT" versions locally, and we only publish each version once. 
-
-sonaUpload
-### How to publish a version
+See one time setup instructions in our shared Google drive doc. __NOTE__ the GPG password for `publishSigned` referred there.
 
 Maven Central repos do not allow republish of the same version of a library. This is to avoid depending on a moving target, that corresponds to different code depending on the day. There is mechanism to use `${version}-SNAPSHOT` versions for development, but I have not been able to make it work, and it is not a great solution anyway for that reason.  
 So the __publishing process__ is as follows:
