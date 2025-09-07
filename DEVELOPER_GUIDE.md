@@ -35,22 +35,39 @@ sbt -no-colors compile
 
 ## Maven artifact publishing
 
-Maven publishing is not setup yet.  
-Use `sbt -no-colors 'publishLocal'` to publish to the local maven repo. 
+This repo uses mostly [semantic versioning](https://semver.org/), but we sometimes add the suffix "-SNAPSHOT" for development versions.  
+We publish to https://central.sonatype.com/artifact/io.github.demiourgoi/sscheck-core_2.13  
+See one time setup instructions in our shared Google drive doc.
 
-## Versioning and git branching strategy
+We publish to __Github package__, which requires manually deleting a version to publish a version more than once, so we only use "-SNAPSHOT" versions locally, and we only publish each version once. 
 
-Versions use [semantic versioning](https://semver.org/).  
-This library is published in a single Maven artifact with group id "es.ucm.fdi.demiourgoi" and artifact id "sscheck-core".  
-Maven repos only allow republish of ${version}-SNAPSHOT versions, so:
+sonaUpload
+### How to publish a version
 
-- Use version ${version}-SNAPSHOT when creating a new version.
+Maven Central repos do not allow republish of the same version of a library. This is to avoid depending on a moving target, that corresponds to different code depending on the day. There is mechanism to use `${version}-SNAPSHOT` versions for development, but I have not been able to make it work, and it is not a great solution anyway for that reason.  
+So the __publishing process__ is as follows:
+
+- We use version `${version}-SNAPSHOT` for development, using `publishLocal` or `publishM2` to make the snapshot version available in the same workspace.
 - When a version is ready for publish
-  - Change version to "${version}" without "-SNAPSHOT" and publish to maven central. 
-  - Commit that change as the latest commit for this branch: this freezes the release. I don't use git tags for now as there is no need, and maven central blocks new publishes anyways
-  - Create a new branch increasing the patch version, with "-SNAPSHOT" as above. We can always increase the minor or major version later.
-  - Change the default branch in Github settings
-  
+  - Change version to "${version}" without "-SNAPSHOT" and publish the version as seen below
+  - We are not using branches or tags for each versions, we can add that later if needed, but it's complexity with no value for now. We just use the `scala_2.13` branch, with the _invariant_ that the version monotonically increases as we move towards the tip of the branch.
+
+
+How to actually publish:
+
+```bash
+sbt
+# leaves it on https://central.sonatype.com/repository/maven-snapshots/io/github/demiourgoi/sscheck-core_2.13/0.5.1-SNAPSHOT/sscheck-core_2.13-0.5.1-SNAPSHOT-javadoc.jar
+publishSigned
+# only works for non SNAPSHOT
+# Appears on https://central.sonatype.com/publishing/deployments
+sonaUpload
+# Either press "Publish" on https://central.sonatype.com/publishing/deployments or
+# use this target. This takes a while and then in https://central.sonatype.com/publishing/deployments appears
+# as published, and also in https://central.sonatype.com/artifact/io.github.demiourgoi/sscheck-core_2.13/versions
+sonaRelease
+```
+
 ## VsCode
 
 [Specs2 works with Metals](https://etorreborre.github.io/specs2/guide/5.0.0-RC-11/org.specs2.guide.RunInIDE.html)
@@ -61,8 +78,10 @@ Metals doesn't seem to work on Windows. For Ubuntu install the JDK sources (e.g.
 
 ### Cline
 
-Optionally, [Cline](https://docs.cline.bot/) is a free code assistant that can accelerate coding tasks, specially when using the [memory bank pattern](https://docs.cline.bot/prompting/cline-memory-bank). You need to connect to an LLM inference API to use it.  
-A simple option is [Mistral](https://console.mistral.ai) using the "Experiment" that does log your prompts for training the model, which should be fine as this is an open source project anyway. Per [Mistral docs](https://mistral.ai/solutions/coding), Devstral medium is a good option for Cline.
+Optionally, [Cline](https://docs.cline.bot/) is a free code assistant that can accelerate coding tasks, specially when using the [memory bank pattern](https://docs.cline.bot/prompting/cline-memory-bank). You need to connect to an LLM inference API to use it. Some simple options:
+
+- [Mistral](https://console.mistral.ai) using the "Experiment" that does log your prompts for training the model, which should be fine as this is an open source project anyway. Per [Mistral docs](https://mistral.ai/solutions/coding), Devstral medium is a good option for Cline.
+- Gemini using Google AI Studio, getting an API key [here](https://aistudio.google.com/u/1/apikey). Probably also uses the prompts for training. 
 
 
 ## Specs2 docs

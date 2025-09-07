@@ -2,7 +2,7 @@ name := "sscheck-core"
 
 organization := "io.github.demiourgoi"
 
-version := "0.5.1"
+version := "0.5.2"
 
 scalaVersion := "2.13.15"
 
@@ -47,7 +47,6 @@ resolvers ++= Seq(
 // Configure Sonatype credentials
 credentials += Credentials(Path.userHome / ".demiourgoi_sonatype_creds")
 
-ThisBuild / organization :=  "io.github.demiourgoi"
 ThisBuild / organizationName := "demiourgoi"
 ThisBuild / organizationHomepage := Some(url("https://github.com/demiourgoi"))
 ThisBuild / versionScheme := Some("semver-spec")
@@ -60,7 +59,7 @@ ThisBuild / scmInfo := Some(
 ThisBuild / developers := List(
   Developer(
     id    = "juanrh",
-    name  = "Juan Rodriguez",
+    name  = "Juan Rodriguez Hortala",
     email = "",
     url   = url("https://juanrh.github.io")
   )
